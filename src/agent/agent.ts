@@ -1,4 +1,5 @@
 import OpenAI from "openai"
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
 import { readFile } from "../tools/readFile.js"
 
 const client = new OpenAI({
@@ -41,18 +42,20 @@ async function executeTool(
 }
 
 export async function runAgent(userInput: string) {
+  const messages: ChatCompletionMessageParam[] = [
+    {
+      role: "user",
+      content: userInput,
+    },
+  ]
   const response = await client.chat.completions.create({
     model: "deepseek-v4-pro",
-    messages: [
-      {
-        role: "user",
-        content: userInput,
-      },
-    ],
+    messages,
     tools,
   })
 
   const message = response.choices[0]!.message
+  messages.push(message)
   console.dir(message, { depth: null })
 
   if (message.tool_calls) {
@@ -72,7 +75,20 @@ export async function runAgent(userInput: string) {
     console.log("Tool result:")
     console.log(result)
 
-    return result
+    messages.push({
+      role: "tool",
+      tool_call_id: toolCall.id,
+      content: JSON.stringify(result),
+    })
+
+    const secondResponse = await client.chat.completions.create({
+      model: "deepseek-v4-pro",
+      messages,
+      tools,
+    })
+    const secondMessage = secondResponse.choices[0]!.message
+    console.dir(secondMessage, { depth: null })
+    return secondMessage.content
   }
 
   return message.content
