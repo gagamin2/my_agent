@@ -1,0 +1,9 @@
+node_modules/
+.env
+dist/
+
+# Python 残留
+venv/
+.venv/
+__pycache__/
+*.pyc
