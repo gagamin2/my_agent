@@ -1,6 +1,7 @@
 import OpenAI from "openai"
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
 import { readFile } from "../tools/readFile.js"
+import { writeFileTool } from "../tools/writeFile.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -27,6 +28,28 @@ const tools = [
       },
     },
   },
+
+  {
+    type: "function" as const,
+    function: {
+      name: "write_file",
+      description: "向指定文件写入内容",
+      parameters: {
+        type: "object",
+        properties: {
+          filePath: {
+            type: "string",
+            description: "需要写入的文件路径",
+          },
+          content: {
+            type: "string",
+            description: "需要写入文件的完整内容",
+          },
+        },
+        required: ["filePath", "content"],
+      },
+    },
+  },
 ]
 
 //工具执行器
@@ -38,6 +61,9 @@ async function executeTool(
 
   if (name === "read_file") {
     return await readFile(args.filePath)
+  }
+  if (name === "write_file") {
+    return await writeFileTool(args.filePath,args.content)
   }
 
   throw new Error(`Unknown tool: ${name}`)
