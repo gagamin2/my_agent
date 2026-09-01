@@ -1,15 +1,22 @@
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
 
 const MAX_RECOVERY = 3//允许最多截断恢复次数
-let recoveryCount = 0
+// let recoveryCount = 0
 
 export function handleTruncation(
   messages: ChatCompletionMessageParam[],
-): "retry" | "give_up" {
-  recoveryCount++
+  recoveryCount: number,
+): {
+  status: "retry" | "give_up"
+  recoveryCount: number
+    } {
+    recoveryCount++
 
   if (recoveryCount >= MAX_RECOVERY) {
-    return "give_up"
+    return {
+      status: "give_up",
+      recoveryCount,
+    }
   }
 
   const message =
@@ -24,5 +31,8 @@ export function handleTruncation(
     content: message,
   })
 
-  return "retry"
+  return {
+    status: "retry",
+    recoveryCount,
+  }
 }

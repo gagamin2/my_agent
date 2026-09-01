@@ -83,6 +83,9 @@ export async function runAgent(userInput: string) {
   ]
 
   let i = 0
+  let totalOutput = 0
+  let recoveryCount = 0
+  const toolHistory = new Map<string, number>()
   while(i < MAX_TURNS){
     i++
     console.log(`\nAgent 第 ${i} 轮：`)
@@ -99,8 +102,14 @@ export async function runAgent(userInput: string) {
   //检查截断原因并做出相关反应
   const finishReason = response.choices[0]?.finish_reason
   if (finishReason === "length") {
-    const recoveryStatus = handleTruncation(messages)
-    if (recoveryStatus === "give_up") {
+    const recoveryResult = handleTruncation(
+    messages,
+    recoveryCount,
+  )
+
+  recoveryCount = recoveryResult.recoveryCount
+
+    if (recoveryResult.status === "give_up") {
       return "Agent 输出多次被截断，已停止。"
     }
     continue
@@ -111,13 +120,14 @@ export async function runAgent(userInput: string) {
 
   //Token开销检察
   const outputTokens = response.usage?.completion_tokens ?? 0
-  const budgetStatus = checkBudget(outputTokens)
-  if (budgetStatus === "stop") {
+  const budgetResult = checkBudget(outputTokens,totalOutput)
+  totalOutput = budgetResult.totalOutput
+  if (budgetResult.status === "stop") {
     return "Agent Token 预算已耗尽，已停止。"
   }
   //Token消耗接近预算时警告
   let tokenWarning = false
-  if (budgetStatus === "nudge") {
+  if (budgetResult.status === "nudge") {
     tokenWarning = true
   }
   
@@ -140,7 +150,7 @@ export async function runAgent(userInput: string) {
       toolCall.function.name,
       toolCall.function.arguments,
     )
-    const loopStatus = checkLoop(fingerprint)
+    const loopStatus = checkLoop(fingerprint,toolHistory)
     console.log("当前Loop status:", loopStatus)
     if (loopStatus === "break") {
       return "Agent 检测到重复工具调用，已停止。"
