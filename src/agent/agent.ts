@@ -5,6 +5,7 @@ import { writeFileTool } from "../tools/writeFile.js"
 import {createToolFingerprint,checkLoop} from "../safety/loopDetector.js"
 import { checkBudget } from "../safety/tokenBudget.js"
 import { handleTruncation } from "../safety/truncationRecovery.js"
+import {getSystemPrompt,getLoopWarningPrompt,getTokenWarningPrompt} from "../prompt/promptManager.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -76,6 +77,10 @@ async function executeTool(
 export async function runAgent(userInput: string) {
   //用户与模型的对话记录
   const messages: ChatCompletionMessageParam[] = [
+    {
+    role: "system",
+    content: getSystemPrompt(),
+    },
     {
       role: "user",
       content: userInput,
@@ -193,14 +198,14 @@ export async function runAgent(userInput: string) {
   if (loopWarning) {
     messages.push({
       role: "system",
-      content: "检测到你正在重复调用相同的工具，请检查当前任务是否陷入循环，并尝试改变执行策略。",
+      content: getLoopWarningPrompt(),
     })
     console.log("检测到重复调用相同工具，已发送提醒。")
   }
   if (tokenWarning) {
     messages.push({
       role: "system",
-      content:"Token预算即将耗尽，请减少不必要的工具调用，尽快完成当前任务。"
+      content:getTokenWarningPrompt(),
     })
    console.log("检测到Token预算即将耗尽，已发送提醒。")
   }
