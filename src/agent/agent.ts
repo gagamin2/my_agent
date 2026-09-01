@@ -41,24 +41,31 @@ async function executeTool(
   throw new Error(`Unknown tool: ${name}`)
 }
 
+//Agent入口
 export async function runAgent(userInput: string) {
+  //用户与模型的对话记录
   const messages: ChatCompletionMessageParam[] = [
     {
       role: "user",
       content: userInput,
     },
   ]
+
+  while(true){
+    //首次请求
   const response = await client.chat.completions.create({
     model: "deepseek-v4-pro",
     messages,
     tools,
   })
-
+  //模型返回信息
   const message = response.choices[0]!.message
   messages.push(message)
   console.dir(message, { depth: null })
 
-  if (message.tool_calls) {
+  if (!message.tool_calls) {
+    return message.content
+  }else if (message.tool_calls) {
     const toolCall = message.tool_calls.find(
       (call) => call.type === "function",
     )
@@ -79,17 +86,20 @@ export async function runAgent(userInput: string) {
       role: "tool",
       tool_call_id: toolCall.id,
       content: JSON.stringify(result),
-    })
+    })//Tool Result 加入对话历史
 
-    const secondResponse = await client.chat.completions.create({
-      model: "deepseek-v4-pro",
-      messages,
-      tools,
-    })
-    const secondMessage = secondResponse.choices[0]!.message
-    console.dir(secondMessage, { depth: null })
-    return secondMessage.content
+    // //第二次调用模型
+    // const secondResponse = await client.chat.completions.create({
+    //   model: "deepseek-v4-pro",
+    //   messages,
+    //   tools,
+    // })
+    // const secondMessage = secondResponse.choices[0]!.message
+    // console.dir(secondMessage, { depth: null })
+    // return secondMessage.content
+
   }
 
-  return message.content
+  //return message.content
+}
 }
