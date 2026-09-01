@@ -2,6 +2,8 @@ import OpenAI from "openai"
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
 import { readFile } from "../tools/readFile.js"
 
+const MAX_TURNS = 10//保险丝：最大执行轮数
+
 const client = new OpenAI({
   baseURL: "https://api.deepseek.com",
   apiKey: process.env.DEEPSEEK_API_KEY,
@@ -51,7 +53,10 @@ export async function runAgent(userInput: string) {
     },
   ]
 
-  while(true){
+  let i = 0
+  while(i < MAX_TURNS){
+    i++
+    console.log(`\nAgent 第 ${i} 轮：`)
     //首次请求
   const response = await client.chat.completions.create({
     model: "deepseek-v4-pro",
@@ -80,7 +85,6 @@ export async function runAgent(userInput: string) {
       toolCall.function.name,
       toolCall.function.arguments,
     )
-
     console.log("Tool result:")
     console.log(result)
 
@@ -103,6 +107,10 @@ export async function runAgent(userInput: string) {
   }
 
   //return message.content
+  console.log(`\nAgent 第 ${i} 轮已结束`)
+  if (i === MAX_TURNS) {
+    return "Agent 达到最大执行轮数，已停止。"
+  }
   }
 }
 }
