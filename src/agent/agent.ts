@@ -4,6 +4,7 @@ import { readFile } from "../tools/readFile.js"
 import { writeFileTool } from "../tools/writeFile.js"
 import {createToolFingerprint,checkLoop} from "../safety/loopDetector.js"
 import { checkBudget } from "../safety/tokenBudget.js"
+import { handleTruncation } from "../safety/truncationRecovery.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -90,9 +91,21 @@ export async function runAgent(userInput: string) {
     model: "deepseek-v4-pro",
     messages,
     tools,
+    //max_tokens: 50
   })
   //模型返回信息
   const message = response.choices[0]!.message
+
+  //检查截断原因并做出相关反应
+  const finishReason = response.choices[0]?.finish_reason
+  if (finishReason === "length") {
+    const recoveryStatus = handleTruncation(messages)
+    if (recoveryStatus === "give_up") {
+      return "Agent 输出多次被截断，已停止。"
+    }
+    continue
+  }
+
   messages.push(message)
   console.dir(message, { depth: null })
 
