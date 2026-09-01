@@ -9,7 +9,7 @@ async function main() {
 
   // const result = await readFile("./src/index.ts")
   const result = await runAgent(
-    "请读取 src/index.ts，然后告诉我这个文件主要做了什么"
+    "请读取 src/index.ts 和 src/agent/agent.ts，然后分别告诉我这两个文件的主要作用"
   )
 
   console.log(result)

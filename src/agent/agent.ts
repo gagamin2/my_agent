@@ -66,13 +66,15 @@ export async function runAgent(userInput: string) {
   if (!message.tool_calls) {
     return message.content
   }else if (message.tool_calls) {
-    const toolCall = message.tool_calls.find(
-      (call) => call.type === "function",
-    )
-
-    if (!toolCall) {
-      throw new Error("No function tool call found")
-    }
+    // const toolCall = message.tool_calls.find(
+    //   (call) => call.type === "function",
+    // )
+    //if (!toolCall) {throw new Error("No function tool call found")}
+    
+    for (const toolCall of message.tool_calls) {
+      if (toolCall.type !== "function") {
+      continue
+    }//执行所有返回的Toolcall
 
     const result = await executeTool(
       toolCall.function.name,
@@ -101,5 +103,6 @@ export async function runAgent(userInput: string) {
   }
 
   //return message.content
+  }
 }
 }
