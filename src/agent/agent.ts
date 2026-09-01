@@ -6,6 +6,7 @@ import {createToolFingerprint,checkLoop} from "../safety/loopDetector.js"
 import { checkBudget } from "../safety/tokenBudget.js"
 import { handleTruncation } from "../safety/truncationRecovery.js"
 import {getSystemPrompt,getLoopWarningPrompt,getTokenWarningPrompt} from "../prompt/promptManager.js"
+import { loadSkill } from "../skills/loadSkill.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -75,11 +76,16 @@ async function executeTool(
 
 //Agent入口
 export async function runAgent(userInput: string) {
+  const skill = await loadSkill("./src/skills/fileAnalysis.md")
+  console.log(skill)
+  const systemPrompt = `${getSystemPrompt()}
+当前可用 Skill：
+${skill}`//系统提示词+skill
   //用户与模型的对话记录
   const messages: ChatCompletionMessageParam[] = [
     {
     role: "system",
-    content: getSystemPrompt(),
+    content: systemPrompt,
     },
     {
       role: "user",
