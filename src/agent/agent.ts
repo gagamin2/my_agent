@@ -3,6 +3,7 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { readFile } from "../tools/readFile.js"
 import { writeFileTool } from "../tools/writeFile.js"
 import {createToolFingerprint,checkLoop} from "../safety/loopDetector.js"
+import { checkBudget } from "../safety/tokenBudget.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -95,6 +96,18 @@ export async function runAgent(userInput: string) {
   messages.push(message)
   console.dir(message, { depth: null })
 
+  //Token开销检察
+  const outputTokens = response.usage?.completion_tokens ?? 0
+  const budgetStatus = checkBudget(outputTokens)
+  if (budgetStatus === "stop") {
+    return "Agent Token 预算已耗尽，已停止。"
+  }
+  //Token消耗接近预算时警告
+  let tokenWarning = false
+  if (budgetStatus === "nudge") {
+    tokenWarning = true
+  }
+  
   if (!message.tool_calls) {
     return message.content
   }else if (message.tool_calls) {
@@ -103,21 +116,29 @@ export async function runAgent(userInput: string) {
     // )
     //if (!toolCall) {throw new Error("No function tool call found")}
     
+    let loopWarning = false
     for (const toolCall of message.tool_calls) {
       if (toolCall.type !== "function") {
       continue
     }//执行所有返回的Toolcall
 
+    //生成指纹，并检查是否有重复调用
     const fingerprint = createToolFingerprint(
       toolCall.function.name,
       toolCall.function.arguments,
     )
-
     const loopStatus = checkLoop(fingerprint)
     console.log("当前Loop status:", loopStatus)
-
     if (loopStatus === "break") {
       return "Agent 检测到重复工具调用，已停止。"
+    }
+    //两次重复调用时警告
+    if (loopStatus === "warn") {
+      loopWarning = true
+      // messages.push({
+      //   role: "system",
+      //   content: "检测到你正在重复调用相同的工具，请检查当前任务是否陷入循环，并尝试改变执行策略。"
+      // })
     }
 
     const result = await executeTool(
@@ -146,6 +167,20 @@ export async function runAgent(userInput: string) {
 
   }
 
+  if (loopWarning) {
+    messages.push({
+      role: "system",
+      content: "检测到你正在重复调用相同的工具，请检查当前任务是否陷入循环，并尝试改变执行策略。",
+    })
+    console.log("检测到重复调用相同工具，已发送提醒。")
+  }
+  if (tokenWarning) {
+    messages.push({
+      role: "system",
+      content:"Token预算即将耗尽，请减少不必要的工具调用，尽快完成当前任务。"
+    })
+   console.log("检测到Token预算即将耗尽，已发送提醒。")
+  }
   //return message.content
   console.log(`\nAgent 第 ${i} 轮已结束`)
   if (i === MAX_TURNS) {
