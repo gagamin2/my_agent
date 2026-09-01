@@ -2,6 +2,7 @@ import OpenAI from "openai"
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
 import { readFile } from "../tools/readFile.js"
 import { writeFileTool } from "../tools/writeFile.js"
+import {createToolFingerprint,checkLoop} from "../safety/loopDetector.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -107,10 +108,23 @@ export async function runAgent(userInput: string) {
       continue
     }//执行所有返回的Toolcall
 
+    const fingerprint = createToolFingerprint(
+      toolCall.function.name,
+      toolCall.function.arguments,
+    )
+
+    const loopStatus = checkLoop(fingerprint)
+    console.log("当前Loop status:", loopStatus)
+
+    if (loopStatus === "break") {
+      return "Agent 检测到重复工具调用，已停止。"
+    }
+
     const result = await executeTool(
       toolCall.function.name,
       toolCall.function.arguments,
     )
+
     console.log("Tool result:")
     console.log(result)
 

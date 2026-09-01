@@ -1,0 +1,96 @@
+src/index.ts 与 src/agent/agent.ts 主要作用说明
+====================================================
+
+一、src/index.ts 的主要作用
+------------------------------------
+src/index.ts 是整个程序的入口文件（Entry Point），负责启动和编排 Agent 的执行流程，同时集中展示了几种可选的调用方式。
+
+1. 环境初始化
+   - 文件开头的 import "dotenv/config" 用于加载项目根目录 .env 文件中的环境变量。
+   - 这一点非常关键，因为后续 Agent 运行需要用到 DEEPSEEK_API_KEY 这一敏感配置，而该密钥通常不会硬编码在源码中，而是通过环境变量注入。
+
+2. 依赖导入
+   - 从 ./agent/agent.js 导入 runAgent 函数，这是整个 Agent 的核心入口，负责与 LLM 交互、工具调用、多轮推理等。
+   - 从 ./tools/readFile.js 导入 readFile 工具函数，表示入口文件也保留了直接调用底层工具的能力（当前为注释状态）。
+
+3. main 函数逻辑
+   - main 是一个异步函数，其中保留了几段注释掉的调用示例，用于开发调试或后续切换：
+     a) runAgent("简单介绍一下你自己吧。")
+        用于测试 Agent 的纯对话能力（无工具调用场景）。
+     b) readFile("./src/index.ts")
+        用于单独测试文件读取工具是否正常。
+     c) runAgent("请不断读取 tests/text.txt。")
+        用于测试 Agent 的循环检测与安全熔断机制。
+   - 当前实际生效的调用是：
+     runAgent("请读取 src/index.ts 和 src/agent/agent.ts，然后分别告诉我这两个文件的主要作用，然后把你对它们主要作用的说明写入tests/text.txt,要详细一点，并覆盖之前的版本。")
+     即让 Agent 读取两个源文件、分析其作用，并将详细说明写入 tests/text.txt 覆盖旧内容。
+   - 最后通过 console.log(result) 输出 Agent 的最终执行结果，便于在控制台观察。
+
+4. 启动方式
+   - 文件末尾直接调用 main()，保证模块被加载时立即执行主流程。
+
+5. 小结
+   - src/index.ts 相当于“程序入口 + 任务编排器 + 环境初始化器 + 调用示例展示”。
+   - 它本身不实现 Agent 的核心逻辑，而是通过调用 runAgent 来完成任务，符合入口文件轻量化、职责单一的设计原则。
+
+二、src/agent/agent.ts 的主要作用
+------------------------------------
+src/agent/agent.ts 是整个 Agent 系统的核心实现文件，定义了一个支持工具调用、多轮循环、安全检测的 LLM Agent。
+
+1. 依赖导入与配置
+   - 引入 OpenAI 官方 SDK（openai），并导入 ChatCompletionMessageParam 类型用于约束对话消息结构。
+   - 引入 readFile 与 writeFileTool 两个本地工具实现，分别对应“读取文件”和“写入文件”能力。
+   - 引入 createToolFingerprint 和 checkLoop 两个安全函数，用于生成工具调用指纹并检测是否存在重复调用（死循环）。
+   - 定义 MAX_TURNS = 10，作为“保险丝”：限制 Agent 最多执行 10 轮，防止无限循环消耗资源。
+
+2. 创建 LLM 客户端
+   - 使用 new OpenAI({ baseURL: "https://api.deepseek.com", apiKey: process.env.DEEPSEEK_API_KEY }) 创建客户端。
+   - 说明 Agent 使用的是 DeepSeek 的 OpenAI 兼容接口，API Key 来自环境变量。
+
+3. 工具声明（tools 数组）
+   - 以 Function Calling 的标准 JSON Schema 形式声明了两个工具：
+     a) read_file
+        - 描述：读取指定文件的内容。
+        - 参数：filePath（必填，字符串），表示需要读取的文件路径。
+     b) write_file
+        - 描述：向指定文件写入内容。
+        - 参数：filePath（必填）和 content（必填），分别表示目标文件路径与要写入的完整内容。
+   - 这些声明会随聊天请求一起发送给模型，模型据此决定是否调用工具、调用哪个工具以及传入什么参数。
+
+4. 工具执行器（executeTool 函数）
+   - 接收工具名称和 JSON 字符串形式的参数。
+   - 通过 JSON.parse 解析参数。
+   - 根据工具名称分派：
+     a) 若为 read_file，调用 readFile(args.filePath)。
+     b) 若为 write_file，调用 writeFileTool(args.filePath, args.content)。
+   - 若遇到未知工具名，抛出错误 “Unknown tool: ...”。
+   - 该函数是“模型决策”与“实际本地执行”之间的桥梁。
+
+5. Agent 主循环（runAgent 函数）
+   - 输入：用户指令 userInput。
+   - 初始化 messages 对话记录，先放入一条 role 为 user 的消息。
+   - 使用 while 循环，最多执行 MAX_TURNS 轮，每轮流程如下：
+     a) 打印当前轮次。
+     b) 调用 client.chat.completions.create，传入 model（deepseek-v4-pro）、messages、tools，请求模型给出回复。
+     c) 获取模型返回的 message，将其 push 到 messages 中，并用 console.dir 打印完整信息。
+     d) 如果模型没有返回 tool_calls，说明模型已经给出最终文本答案，直接 return message.content 结束。
+     e) 如果模型返回了 tool_calls，则遍历每个工具调用：
+        - 仅处理 type 为 function 的调用，其他类型跳过。
+        - 调用 createToolFingerprint(toolCall.function.name, toolCall.function.arguments) 生成本次调用的指纹。
+        - 调用 checkLoop(fingerprint) 检查是否出现重复调用：
+          · 如果返回 "break"，说明检测到循环，立即返回“Agent 检测到重复工具调用，已停止。”，避免死循环。
+        - 若未触发熔断，则调用 executeTool 执行工具，并打印执行结果。
+        - 将工具返回结果封装为 role 为 tool 的消息，并带上 tool_call_id，push 回 messages，使模型在下一轮可以看到工具结果并继续推理。
+     f) 每轮结束时打印“Agent 第 x 轮已结束”。
+     g) 如果 i 达到 MAX_TURNS，返回“Agent 达到最大执行轮数，已停止。”。
+   - 注释中还保留了一段“第二次调用模型”的代码，展示了另一种两次调用模型的实现思路，但当前版本采用 while 循环实现多轮迭代。
+
+6. 小结
+   - src/agent/agent.ts 实现了完整的工具调用型 Agent：
+     · 声明工具并发送给模型；
+     · 接收模型返回的 tool_calls；
+     · 解析参数并本地执行工具；
+     · 将工具结果回传模型；
+     · 支持多轮循环直到模型给出最终答案；
+     · 同时具备“最大轮数熔断”和“重复调用检测”双重安全机制。
+   - 它是整个系统最核心的部分，负责将 LLM 的推理能力与本地文件读写能力连接起来，形成一个可以自主完成“读取文件 → 分析内容 → 写入文件”等实际任务的智能体。
