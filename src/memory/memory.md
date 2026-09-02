@@ -1,4 +1,9 @@
 # Memory
 
-- 这个项目使用 TypeScript 编写源码（`src/**/*.ts`），最终通过 `tsc` 编译为 JavaScript 后在 Node.js 上运行。
-- 开发时使用 `tsx src/index.ts` 直接运行 TypeScript；构建命令为 `tsc`，启动命令为 `node dist/index.js`。
+## 项目技术栈
+- 语言：TypeScript，运行于 Node.js
+- 模块规范：ES Module（ESM），导入路径使用 `.js` 后缀（NodeNext 风格）
+- 入口文件：`src/index.ts`
+- 入口逻辑：加载 `dotenv/config`，调用 `runAgent` 执行用户指令
+- 自定义工具：`src/tools/readFile.ts`（文件读取）
+- 项目类型：Agent 项目

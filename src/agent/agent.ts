@@ -9,7 +9,8 @@ import {getSystemPrompt,getLoopWarningPrompt,getTokenWarningPrompt} from "../pro
 import { loadSkill } from "../skills/loadSkill.js"
 import {createContext,addMessage} from "../context/context.js"
 import { loadMemory } from "../memory/memoryManager.js"
-import { updateMemory } from "../memory/memoryUpdater.js"
+// import { updateMemory } from "../memory/memoryUpdater.js"
+import { runMemoryAgent } from "../memory/memoryAgent.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -151,7 +152,7 @@ ${skill}`//系统提示词+skill
   
   if (!message.tool_calls) {
     const result = message.content ?? ""
-    await updateMemory(userInput, result)//得到最终答案时保存memory
+    await runMemoryAgent(userInput, result)//得到最终答案时保存memory
     return result
   }else if (message.tool_calls) {
     // const toolCall = message.tool_calls.find(
