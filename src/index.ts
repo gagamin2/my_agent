@@ -3,36 +3,58 @@ import { runAgent } from "./agent/agent.js"
 import { readFile } from "./tools/readFile.js"
 import { createSession } from "./session/session.js"
 import { compressContext } from "./context/contextCompressor.js"
+import { createInterface } from "node:readline/promises"
+import { stdin as input, stdout as output } from "node:process"
 
 async function main() {
   const session = createSession()
+  const rl = createInterface({input,output})
+  console.log("Agent 已启动，可以开始对话。")
+  console.log("输入 exit 退出。")
 
-  console.log("Session ID:", session.sessionId)
+  while (true) {
+    const userInput = await rl.question("你：")
+    if (userInput.trim() === "exit") {
+      break
+    }
+    const result = await runAgent(
+      userInput,
+      session,
+    )
+    console.log("Agent：")
+    console.log(result)
+  }
+  rl.close()
 
-  const result1 = await runAgent(
-    "读取 tests/text.txt，并告诉我里面有什么。",
-    session,
-  )
 
-  console.log("第一次结果：")
-  console.log(result1)
 
-  const result2 = await runAgent(
-    "刚才那个文件一共有多少行？",
-    session,
-  )
 
-  console.log("第二次结果：")
-  console.log(result2)
+  // console.log("Session ID:", session.sessionId)
 
-  const compressedMessages = await compressContext(session.messages)
+  // const result1 = await runAgent(
+  //   "读取 tests/text.txt，并告诉我里面有什么。",
+  //   session,
+  // )
 
-  console.log("压缩前消息数量：", session.messages.length)
-  console.log("压缩后消息数量：", compressedMessages.length)
+  // console.log("第一次结果：")
+  // console.log(result1)
 
-  console.dir(compressedMessages, {
-    depth: null,
-  })
+  // const result2 = await runAgent(
+  //   "刚才那个文件一共有多少行？",
+  //   session,
+  // )
+
+  // console.log("第二次结果：")
+  // console.log(result2)
+
+  // const compressedMessages = await compressContext(session.messages)
+
+  // console.log("压缩前消息数量：", session.messages.length)
+  // console.log("压缩后消息数量：", compressedMessages.length)
+
+  // console.dir(compressedMessages, {
+  //   depth: null,
+  // })
 }
   // const result = await runAgent(
   //   "简单介绍一下你自己吧。"

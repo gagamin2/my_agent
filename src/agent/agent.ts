@@ -112,8 +112,8 @@ export async function runAgent(userInput: string,session: Session) {
 
   // 读取长期 Memory
   const memory = await loadMemory()
-  console.log("当前 Memory：")
-  console.log(memory)
+  //console.log("当前 Memory：")
+  //console.log(memory)
 
   const systemPrompt = `${getSystemPrompt()}
 当前可用 Skill：
@@ -156,8 +156,8 @@ ${skill.content}`//系统提示词+skill
   }
 
   addMessage(session.messages, message)
-  console.log("模型回复：", message.content)
-  console.dir(message, { depth: null })
+  //console.log("模型回复：", message.content)
+  //console.dir(message, { depth: null })
   // console.log(
   //   "工具调用：",
   //   message.tool_calls
