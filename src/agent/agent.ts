@@ -7,6 +7,7 @@ import { checkBudget } from "../safety/tokenBudget.js"
 import { handleTruncation } from "../safety/truncationRecovery.js"
 import {getSystemPrompt,getLoopWarningPrompt,getTokenWarningPrompt} from "../prompt/promptManager.js"
 import { loadSkill } from "../skills/loadSkill.js"
+import {createContext,addMessage} from "../context/context.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -81,20 +82,12 @@ export async function runAgent(userInput: string) {
   const systemPrompt = `${getSystemPrompt()}
 当前可用 Skill：
 ${skill}`//系统提示词+skill
+
   //用户与模型的对话记录
-  const messages: ChatCompletionMessageParam[] = [
-    {
-    role: "system",
-    content: systemPrompt,
-    },
-    {
-      role: "user",
-      content: userInput,
-    },
-  ]
+  const messages=createContext(systemPrompt,userInput)
 
   let i = 0
-  let totalOutput = 0
+  let totalOutput =0
   let recoveryCount = 0
   const toolHistory = new Map<string, number>()
   while(i < MAX_TURNS){
@@ -113,12 +106,8 @@ ${skill}`//系统提示词+skill
   //检查截断原因并做出相关反应
   const finishReason = response.choices[0]?.finish_reason
   if (finishReason === "length") {
-    const recoveryResult = handleTruncation(
-    messages,
-    recoveryCount,
-  )
-
-  recoveryCount = recoveryResult.recoveryCount
+    const recoveryResult = handleTruncation(messages,recoveryCount)
+    recoveryCount = recoveryResult.recoveryCount
 
     if (recoveryResult.status === "give_up") {
       return "Agent 输出多次被截断，已停止。"
@@ -126,7 +115,7 @@ ${skill}`//系统提示词+skill
     continue
   }
 
-  messages.push(message)
+  addMessage(messages, message)
   console.dir(message, { depth: null })
 
   //Token开销检察
@@ -183,7 +172,7 @@ ${skill}`//系统提示词+skill
     console.log("Tool result:")
     console.log(result)
 
-    messages.push({
+    addMessage(messages, {
       role: "tool",
       tool_call_id: toolCall.id,
       content: JSON.stringify(result),
@@ -202,16 +191,16 @@ ${skill}`//系统提示词+skill
   }
 
   if (loopWarning) {
-    messages.push({
+    addMessage(messages, {
       role: "system",
       content: getLoopWarningPrompt(),
     })
     console.log("检测到重复调用相同工具，已发送提醒。")
   }
   if (tokenWarning) {
-    messages.push({
+    addMessage(messages, {
       role: "system",
-      content:getTokenWarningPrompt(),
+      content: getTokenWarningPrompt(),
     })
    console.log("检测到Token预算即将耗尽，已发送提醒。")
   }
