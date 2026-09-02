@@ -78,6 +78,31 @@ async function executeTool(
   throw new Error(`Unknown tool: ${name}`)
 }
 
+//模型api重试函数
+async function createChatCompletion(
+  messages: ChatCompletionMessageParam[],
+) {
+  const MAX_RETRIES = 3
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await client.chat.completions.create({
+        model: "deepseek-v4-pro",
+        messages,
+        tools,
+      })
+    } catch (error) {
+      if (attempt === MAX_RETRIES) {
+        throw error
+      }
+      console.log(
+        `模型请求失败，第 ${attempt} 次重试...`,
+      )
+      await new Promise((resolve) =>setTimeout(resolve, 2000))
+    }
+  }
+  throw new Error("模型请求失败")
+}
+
 //Agent入口
 export async function runAgent(userInput: string) {
   const skill = await loadSkill("./src/skills/fileAnalysis.md")
@@ -103,12 +128,7 @@ ${skill}`//系统提示词+skill
     i++
     console.log(`\nAgent 第 ${i} 轮：`)
     //首次请求
-  const response = await client.chat.completions.create({
-    model: "deepseek-v4-pro",
-    messages,
-    tools,
-    //max_tokens: 50
-  })
+  const response = await createChatCompletion(messages)
   //模型返回信息
   const message = response.choices[0]!.message
 
