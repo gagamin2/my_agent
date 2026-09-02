@@ -1,11 +1,4 @@
 # Memory
 
-用户正在学习TypeScript和agent。
-
-这个项目使用 TypeScript 开发。
-
-项目目前包含 Agent、Context、Memory、Prompt、Safety、Skill 和 Tools 模块。
-
-Agent 使用 DeepSeek 模型。
-
-项目正在实现一个具有工具调用、Context、Safety、Skill 和 Memory 能力的 Agent。
+- 这个项目使用 TypeScript 编写源码（`src/**/*.ts`），最终通过 `tsc` 编译为 JavaScript 后在 Node.js 上运行。
+- 开发时使用 `tsx src/index.ts` 直接运行 TypeScript；构建命令为 `tsc`，启动命令为 `node dist/index.js`。

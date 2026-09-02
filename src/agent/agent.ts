@@ -9,6 +9,7 @@ import {getSystemPrompt,getLoopWarningPrompt,getTokenWarningPrompt} from "../pro
 import { loadSkill } from "../skills/loadSkill.js"
 import {createContext,addMessage} from "../context/context.js"
 import { loadMemory } from "../memory/memoryManager.js"
+import { updateMemory } from "../memory/memoryUpdater.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -123,7 +124,17 @@ ${skill}`//系统提示词+skill
   }
 
   addMessage(messages, message)
+  console.log("模型回复：", message.content)
   console.dir(message, { depth: null })
+  // console.log(
+  //   "工具调用：",
+  //   message.tool_calls
+  //     ?.filter((tool) => tool.type === "function")
+  //     .map((tool) => ({
+  //       name: tool.function.name,
+  //       arguments: tool.function.arguments,
+  //     })),
+  // )
 
   //Token开销检察
   const outputTokens = response.usage?.completion_tokens ?? 0
@@ -139,7 +150,9 @@ ${skill}`//系统提示词+skill
   }
   
   if (!message.tool_calls) {
-    return message.content
+    const result = message.content ?? ""
+    await updateMemory(userInput, result)//得到最终答案时保存memory
+    return result
   }else if (message.tool_calls) {
     // const toolCall = message.tool_calls.find(
     //   (call) => call.type === "function",
