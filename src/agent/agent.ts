@@ -116,7 +116,7 @@ export async function runAgent(userInput: string,session: Session) {
 
   const systemPrompt = `${getSystemPrompt()}
 当前可用 Skill：
-${skill}`//系统提示词+skill
+${skill.content}`//系统提示词+skill
 
   //用户与模型的对话记录（后面使用同一Session时不重新创建Context）
   if (session.messages.length === 0) {

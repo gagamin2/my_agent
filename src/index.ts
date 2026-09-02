@@ -2,6 +2,7 @@ import "dotenv/config"
 import { runAgent } from "./agent/agent.js"
 import { readFile } from "./tools/readFile.js"
 import { createSession } from "./session/session.js"
+import { compressContext } from "./context/contextCompressor.js"
 
 async function main() {
   const session = createSession()
@@ -23,6 +24,15 @@ async function main() {
 
   console.log("第二次结果：")
   console.log(result2)
+
+  const compressedMessages = await compressContext(session.messages)
+
+  console.log("压缩前消息数量：", session.messages.length)
+  console.log("压缩后消息数量：", compressedMessages.length)
+
+  console.dir(compressedMessages, {
+    depth: null,
+  })
 }
   // const result = await runAgent(
   //   "简单介绍一下你自己吧。"
@@ -47,6 +57,8 @@ async function main() {
   // const session = createSession()
   // console.log("Session：")
   // console.log(session)
+
+
 
 
 main()

@@ -35,7 +35,7 @@ export async function runMemoryAgent(
 
 当前 Memory Management Skill：
 
-${memorySkill}
+${memorySkill.content}
 
 当前 Memory：
 
