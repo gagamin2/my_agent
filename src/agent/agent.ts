@@ -12,6 +12,7 @@ import { loadMemory } from "../memory/memoryManager.js"
 // import { updateMemory } from "../memory/memoryUpdater.js"
 import { runMemoryAgent } from "../memory/memoryAgent.js"
 import type { Session } from "../session/session.js"
+import { compressContext } from "../context/contextCompressor.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -135,6 +136,8 @@ ${skill.content}`//系统提示词+skill
   while(i < MAX_TURNS){
     i++
     console.log(`\nAgent 第 ${i} 轮：`)
+    //压缩上下文（下一次发送给模型之前）
+  session.messages = await compressContext(session.messages)
     //首次请求
   const response = await createChatCompletion(session.messages)
   //模型返回信息

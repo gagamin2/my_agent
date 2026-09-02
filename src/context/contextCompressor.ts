@@ -13,9 +13,12 @@ export async function compressContext(
   messages: ChatCompletionMessageParam[],
 ): Promise<ChatCompletionMessageParam[]> {
   if (messages.length <= MAX_MESSAGES) {
+    console.log(`Context 不需要压缩，当前消息数量：${messages.length}`)
     return messages
   }//判断Context是否需要压缩
 
+  console.log(`Context 开始压缩：${messages.length} 条消息 → 压缩后预计保留 ${RECENT_MESSAGES + 2} 条`)
+  
   const systemMessage = messages[0]
   if (!systemMessage) {
     return messages
