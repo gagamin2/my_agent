@@ -16,8 +16,6 @@ async function main() {
     "请分析 src/index.ts，并告诉我这个项目使用什么语言开发。"
   )
 
-  
-
   // const result = await runAgent(
   //   "请不断读取 tests/text.txt。",
   // )
