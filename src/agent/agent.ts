@@ -8,6 +8,7 @@ import { handleTruncation } from "../safety/truncationRecovery.js"
 import {getSystemPrompt,getLoopWarningPrompt,getTokenWarningPrompt} from "../prompt/promptManager.js"
 import { loadSkill } from "../skills/loadSkill.js"
 import {createContext,addMessage} from "../context/context.js"
+import { loadMemory } from "../memory/memoryManager.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -78,13 +79,19 @@ async function executeTool(
 //Agent入口
 export async function runAgent(userInput: string) {
   const skill = await loadSkill("./src/skills/fileAnalysis.md")
-  console.log(skill)
+  // console.log(skill)
+
+  // 读取长期 Memory
+  const memory = await loadMemory()
+  console.log("当前 Memory：")
+  console.log(memory)
+
   const systemPrompt = `${getSystemPrompt()}
 当前可用 Skill：
 ${skill}`//系统提示词+skill
 
   //用户与模型的对话记录
-  const messages=createContext(systemPrompt,userInput)
+  const messages=createContext(systemPrompt,userInput,memory)
 
   let i = 0
   let totalOutput =0
