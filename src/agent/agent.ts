@@ -11,6 +11,7 @@ import {createContext,addMessage} from "../context/context.js"
 import { loadMemory } from "../memory/memoryManager.js"
 // import { updateMemory } from "../memory/memoryUpdater.js"
 import { runMemoryAgent } from "../memory/memoryAgent.js"
+import type { Session } from "../session/session.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -104,7 +105,7 @@ async function createChatCompletion(
 }
 
 //Agent入口
-export async function runAgent(userInput: string) {
+export async function runAgent(userInput: string,session: Session) {
   const skill = await loadSkill("./src/skills/fileAnalysis.md")
   // console.log(skill)
 
@@ -117,8 +118,15 @@ export async function runAgent(userInput: string) {
 当前可用 Skill：
 ${skill}`//系统提示词+skill
 
-  //用户与模型的对话记录
-  const messages=createContext(systemPrompt,userInput,memory)
+  //用户与模型的对话记录（后面使用同一Session时不重新创建Context）
+  if (session.messages.length === 0) {
+    session.messages = createContext(systemPrompt,userInput,memory)
+  } else {
+    addMessage(session.messages, {
+      role: "user",
+      content: userInput,
+    })
+  }
 
   let i = 0
   let totalOutput =0
@@ -128,14 +136,14 @@ ${skill}`//系统提示词+skill
     i++
     console.log(`\nAgent 第 ${i} 轮：`)
     //首次请求
-  const response = await createChatCompletion(messages)
+  const response = await createChatCompletion(session.messages)
   //模型返回信息
   const message = response.choices[0]!.message
 
   //检查截断原因并做出相关反应
   const finishReason = response.choices[0]?.finish_reason
   if (finishReason === "length") {
-    const recoveryResult = handleTruncation(messages,recoveryCount)
+    const recoveryResult = handleTruncation(session.messages,recoveryCount)
     recoveryCount = recoveryResult.recoveryCount
 
     if (recoveryResult.status === "give_up") {
@@ -144,7 +152,7 @@ ${skill}`//系统提示词+skill
     continue
   }
 
-  addMessage(messages, message)
+  addMessage(session.messages, message)
   console.log("模型回复：", message.content)
   console.dir(message, { depth: null })
   // console.log(
@@ -213,7 +221,7 @@ ${skill}`//系统提示词+skill
     console.log("Tool result:")
     console.log(result)
 
-    addMessage(messages, {
+    addMessage(session.messages, {
       role: "tool",
       tool_call_id: toolCall.id,
       content: JSON.stringify(result),
@@ -232,14 +240,14 @@ ${skill}`//系统提示词+skill
   }
 
   if (loopWarning) {
-    addMessage(messages, {
+    addMessage(session.messages, {
       role: "system",
       content: getLoopWarningPrompt(),
     })
     console.log("检测到重复调用相同工具，已发送提醒。")
   }
   if (tokenWarning) {
-    addMessage(messages, {
+    addMessage(session.messages, {
       role: "system",
       content: getTokenWarningPrompt(),
     })
