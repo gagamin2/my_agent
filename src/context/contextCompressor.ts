@@ -6,8 +6,8 @@ const client = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
 })
 
-const MAX_MESSAGES = 6
-const RECENT_MESSAGES = 3
+const MAX_MESSAGES = 10
+const RECENT_MESSAGES = 6
 
 export async function compressContext(
   messages: ChatCompletionMessageParam[],
@@ -31,8 +31,15 @@ export async function compressContext(
   }
   
   //找最近消息，只保留需要的字段
+  let recentStart = Math.max(1,messages.length - RECENT_MESSAGES)
+
+  // 如果最近消息是tool，就一同保留assistant(tool_calls)
+  if (messages[recentStart]?.role === "tool") {
+    recentStart--
+  }
+
   const recentMessages = messages
-    .slice(messages.length - RECENT_MESSAGES)
+    .slice(recentStart)
     .map((message) => {
       const { reasoning_content, ...rest } = message as typeof message & {
         reasoning_content?: unknown

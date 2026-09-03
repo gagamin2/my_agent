@@ -12,6 +12,7 @@
 - 核心执行器：`runAgent` 位于 `src/agent/agent.ts`（入口中从 `./agent/agent.js` 导入）
 - 上下文构建模块：`src/context/context.ts`（提供 `createContext` 与 `addMessage`）
 - 自定义工具：`src/tools/readFile.ts`（文件读取）、`writeFileTool`（文件写入）
+- 技能加载模块：`src/skills/loadskill.ts`（Skill 加载工具）
 - 安全函数：`createToolFingerprint`（工具指纹生成）、`checkLoop`（循环检测）
 - LLM SDK：OpenAI SDK，使用 DeepSeek 的 OpenAI 兼容接口，API Key 来自环境变量
 - 项目类型：Agent 项目
@@ -108,6 +109,23 @@ export async function readFile(filePath: string) {
 }
 ```
 
+## Skill 加载工具结构（src/skills/loadskill.ts）
+- 该文件是一个 **Skill 加载工具**，作用非常简单：**加载（读取）一个 Skill 文件**
+- 依赖导入：从 `../tools/readFile.js` 导入已有的 `readFile` 工具函数
+- 导出函数：`loadSkill(skillPath: string)`，接收一个参数 `skillPath`（Skill 文件的路径），是 `async` 异步函数
+- 执行逻辑：内部直接调用 `readFile(skillPath)` 去读取该文件，并把结果原样返回，没有额外逻辑
+- 本质：它是 `readFile` 的薄封装（别名），把「读取文件」这个动作在语义上命名为「加载 Skill」，让代码意图更清晰——专门用来加载 Skill 定义/说明文件
+- 小结：`loadskill.ts` 本身不解析、不校验内容，只负责把 Skill 文件内容读出来返回
+
+## src/skills/loadskill.ts 当前源码（已实际读取确认）
+```ts
+import { readFile } from "../tools/readFile.js"
+
+export async function loadSkill(skillPath: string) {
+  return await readFile(skillPath)
+}
+```
+
 ## tests/text.txt 文件内容（已通过实际读取确认）
 - 是一份说明文档，标题为「src/index.ts 与 src/agent/agent.ts 主要作用说明」
 - 内容分为两大部分：第一部分说明 `src/index.ts` 的主要作用；第二部分说明 `src/agent/agent.ts` 的主要作用
@@ -130,3 +148,4 @@ export async function readFile(filePath: string) {
 - 任务五（后续追问）：用户质疑「你就是写了啊，我看那个内容有新增的」。Agent 再次如实澄清：本次对话中它没有执行任何「写入 Memory」的操作，也不具备这样的工具能力；它只有 `read_file` 和 `write_file` 两个工具，只能操作磁盘文件，不能修改系统 Memory；本次对话只做了一次 `read_file` 读取 `src/tools/readFile.ts` 的只读操作，不会产生任何写入；用户看到的「新增内容」很可能来自系统提示里的「长期 Memory」和之前对话的历史摘要（其中确实包含一条关于 readFile.ts 的记录），那条记录是更早任务中系统自动沉淀保存的历史摘要，而非本次新写，Agent 是被动接收它而无法主动增删；Agent 还邀请用户贴出认为「新增」的那段内容，以便逐条核对它到底来自旧的历史摘要还是与当前 `readFile.ts` 源码一致。Agent 回答准确、自我认知清晰，未发现矛盾，也未发现任务执行 Agent 实际修改 Memory 的证据
 - 任务六（后续追问）：用户回复「可以。」后，Agent 重新读取 `src/tools/readFile.ts` 当前源码并逐条核对，确认源码与历史摘要中的 readFile.ts 记录**完全一致**（导入 `node:fs/promises` 的 `fs`、导出异步函数 `readFile(filePath: string)`、使用 `fs.readFile(filePath, "utf-8")` 读取、`try/catch` 统一返回 `{ success, content }` / `{ success, error }`、错误信息取 `Error.message` 或 `String(error)`），**未发现新增代码行或逻辑变更**；同时再次澄清本次对话没有写入或修改 Memory（当前只有 `read_file` 和 `write_file` 两个工具，读取操作不会触发 Memory 写入），并说明系统给的 Memory 中**没有关于 readFile.ts 的独立条目**，相关信息只存在于之前对话的历史摘要中且与当前源码一致；邀请用户贴出认为「新增」的文字以便逐条核对。该结果与「文件读取工具结构」及「src/tools/readFile.ts 当前源码」记录一致，未发现矛盾
 - 任务七：询问「看看context目录下的context.ts文件有哪些内容？」，Agent 指出 `context/context.ts` 这个路径不存在，实际文件位于 `src/context/context.ts`，并成功读取内容：该文件导入 OpenAI SDK 的类型 `ChatCompletionMessageParam`，导出 `createContext` 与 `addMessage` 两个函数——`createContext` 把 systemPrompt、长期 Memory、userInput 组装成 `ChatCompletionMessageParam[]` 初始消息数组（system 消息内容为 systemPrompt +「以下是 Agent 的长期 Memory：」区块拼接 memory，user 消息内容为 userInput）；`addMessage` 通过 `messages.push(message)` 向上下文追加消息。Agent 还说明了执行流程：`createContext` 生成初始上下文 → 主循环中用 `addMessage` 累积 assistant 消息与工具调用结果 → 每次调用 LLM 时把该消息数组作为上下文传入。该结果与新增的「上下文构建模块结构（src/context/context.ts）」及「src/context/context.ts 当前源码」记录一致，未发现矛盾
+- 任务八：询问「帮我看看loadskill.ts这个文件主要是干啥的，然后告诉我。」，Agent 指出 `loadskill.ts` 的实际路径是 `src/skills/loadskill.ts`，并成功读取内容：该文件从 `../tools/readFile.js` 导入 `readFile`，导出异步函数 `loadSkill(skillPath: string)`，内部直接 `return await readFile(skillPath)`。Agent 说明其作用就是「加载（读取）一个 Skill 文件」，本质是 `readFile` 的薄封装（别名），没有额外逻辑，不解析、不校验内容，只负责把 Skill 文件内容读出来返回。该结果与新增的「Skill 加载工具结构（src/skills/loadskill.ts）」及「src/skills/loadskill.ts 当前源码」记录一致，未发现矛盾
