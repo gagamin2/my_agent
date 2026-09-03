@@ -9,7 +9,7 @@ const client = new OpenAI({
 const MAX_MESSAGES = 10
 const RECENT_MESSAGES = 6
 
-//处理错误的Tool信息，找到assistant
+//处理错误的Tool信息，找到assistant，减少Tool错误压缩回滚的问题
 function hasInvalidToolMessage(
   messages: ChatCompletionMessageParam[],
 ): boolean {

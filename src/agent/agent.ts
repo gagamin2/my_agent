@@ -16,6 +16,7 @@ import { writeFileTool } from "../tools/writeFile.js"
 import { listFilesTool } from "../tools/listFiles.js"
 import { searchFilesTool } from "../tools/searchFiles.js"
 import { toolRegistry } from "../tools/toolRegistry.js"
+import { runCommandTool } from "../tools/runCommand.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -24,7 +25,7 @@ const client = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
 })
 
-const tools = [readFileTool,writeFileTool,listFilesTool, searchFilesTool]
+const tools = [readFileTool,writeFileTool,listFilesTool, searchFilesTool,runCommandTool]
 //工具执行器
 async function executeTool(
   name: string,

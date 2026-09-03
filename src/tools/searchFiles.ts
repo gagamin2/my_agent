@@ -23,7 +23,7 @@ export const searchFilesTool = {
   },
 }
 
-//搜寻所有目录和文件
+//递归搜寻所有目录和文件
 async function searchDirectory(
   directoryPath: string,
   query: string,
