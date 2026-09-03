@@ -14,6 +14,7 @@ import { runMemoryAgent } from "../memory/memoryAgent.js"
 import type { Session } from "../session/session.js"
 import { compressContext } from "../context/contextCompressor.js"
 import {listFilesTool,executeListFiles} from "../tools/listFiles.js"
+import {searchFilesTool, searchFiles} from "../tools/searchFiles.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -22,7 +23,7 @@ const client = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
 })
 
-const tools = [readFileTool,writeFileTool,listFilesTool]
+const tools = [readFileTool,writeFileTool,listFilesTool, searchFilesTool]
 //工具执行器
 async function executeTool(
   name: string,
@@ -39,6 +40,9 @@ async function executeTool(
   if (name === "list_files") {
     return await executeListFiles(args.path)
   }
+  if (name === "search_files") {
+    return await searchFiles(args.query,args.directory)
+}
 
   throw new Error(`Unknown tool: ${name}`)
 }

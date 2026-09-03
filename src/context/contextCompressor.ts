@@ -9,20 +9,29 @@ const client = new OpenAI({
 const MAX_MESSAGES = 10
 const RECENT_MESSAGES = 6
 
-//处理错误的Tool信息
+//处理错误的Tool信息，找到assistant
 function hasInvalidToolMessage(
   messages: ChatCompletionMessageParam[],
 ): boolean {
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i]
-    if (!message) {continue}
-    if (message.role !== "tool") {continue}
 
-    const previousMessage = messages[i - 1]
+    if (!message || message.role !== "tool") {continue}
+    let j = i - 1
+    // 跳过前面的 Tool Result
+    while (j >= 0 && messages[j]?.role === "tool") {
+      j--
+    }
+    const previousMessage = messages[j]
+
     if (
       !previousMessage ||
       previousMessage.role !== "assistant" ||
-      !previousMessage.tool_calls
+      !previousMessage.tool_calls?.some(
+        (toolCall) =>
+          toolCall.type === "function" &&
+          toolCall.id === message.tool_call_id,
+      )
     ) {
       return true
     }
