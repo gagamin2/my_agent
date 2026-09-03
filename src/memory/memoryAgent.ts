@@ -6,7 +6,7 @@ import { memoryTools, executeMemoryTool } from "./memoryTool.js"
 import { addMessage } from "../context/context.js"
 
 const MAX_TURNS=5//memoryAgent 最大运行轮数
-const memorySkill = await loadSkill("./src/skill/memoryManagement.md")
+const memorySkill = await loadSkill("./src/skills/memoryManagement.md")
 
 const systemPrompt = `
 你是 Memory Agent。
@@ -58,7 +58,7 @@ ${result}`,
   let turn = 0
   while (turn<MAX_TURNS) {
     turn++
-    console.log(`Memory Agent 第 ${turn} 轮`)
+    //console.log(`Memory Agent 第 ${turn} 轮`)
 
     const response = await client.chat.completions.create({
       model: "deepseek-v4-pro",
@@ -68,11 +68,11 @@ ${result}`,
     const message = response.choices[0]?.message
 
     if (!message) {
-      console.log("Memory Agent 没有返回结果")
+      //console.log("Memory Agent 没有返回结果")
       return
     }
     if (!message.tool_calls) {
-      console.log("本轮 Memory Agent 没有调用工具，任务结束")
+      //console.log("本轮 Memory Agent 没有调用工具，任务结束")
       return
     }
 
@@ -100,5 +100,5 @@ ${result}`,
       })
     }
   }
-  console.log("Memory Agent 达到最大执行轮数，停止。")
+  //console.log("Memory Agent 达到最大执行轮数，停止。")
 }

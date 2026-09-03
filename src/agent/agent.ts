@@ -206,7 +206,7 @@ ${skill.content}`//系统提示词+skill
       toolCall.function.arguments,
     )
     const loopStatus = checkLoop(fingerprint,toolHistory)
-    console.log("当前Loop status:", loopStatus)
+    // console.log("当前Loop status:", loopStatus)
     if (loopStatus === "break") {
       return "Agent 检测到重复工具调用，已停止。"
     }
