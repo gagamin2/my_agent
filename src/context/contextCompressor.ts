@@ -53,12 +53,14 @@ export async function compressContext(
     })
     .join("\n")
 
-  const response = await client.chat.completions.create({
-    model: "deepseek-v4-pro",
-    messages: [
-      {
-        role: "system",
-        content: `
+  let response
+  try{
+    response = await client.chat.completions.create({
+      model: "deepseek-v4-pro",
+      messages: [
+        {
+          role: "system",
+          content: `
 你负责压缩 Agent 的历史对话。
 
 请总结以下历史消息。
@@ -74,13 +76,17 @@ export async function compressContext(
 - 不要加入历史中不存在的信息
 - 输出简洁的中文摘要
 `,
-      },
-      {
-        role: "user",
-        content: summaryInput,
-      },
-    ],
-  })
+        },
+        {
+          role: "user",
+          content: summaryInput,
+        },
+      ],
+    })
+  }catch (error) {
+    console.error("Context 压缩失败，保留原始上下文。")
+    return messages
+  }
 
   const summary = response.choices[0]?.message.content ?? ""
   const summaryMessage: ChatCompletionMessageParam = {

@@ -221,8 +221,8 @@ ${skill.content}`//系统提示词+skill
       toolCall.function.arguments,
     )
 
-    console.log("Tool result:")
-    console.log(result)
+    // console.log("Tool result:")
+    // console.log(result)
 
     addMessage(session.messages, {
       role: "tool",

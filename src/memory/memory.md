@@ -13,7 +13,7 @@
 - 上下文构建模块：`src/context/context.ts`（提供 `createContext` 与 `addMessage`）
 - 自定义工具：`src/tools/readFile.ts`（文件读取）、`writeFileTool`（文件写入）
 - 技能加载模块：`src/skills/loadskill.ts`（Skill 加载工具）
-- 安全函数：`createToolFingerprint`（工具指纹生成）、`checkLoop`（循环检测）
+- 安全函数：`createToolFingerprint`（工具指纹生成）、`checkLoop`（循环检测），位于 `src/safety/loopDetector.ts`
 - LLM SDK：OpenAI SDK，使用 DeepSeek 的 OpenAI 兼容接口，API Key 来自环境变量
 - 项目类型：Agent 项目
 
@@ -126,6 +126,40 @@ export async function loadSkill(skillPath: string) {
 }
 ```
 
+## 循环检测工具结构（src/safety/loopDetector.ts）
+- 该文件位于 `src/safety/loopDetector.ts`（不是根目录、`src/security` 或 `src/utils` 下）
+- 包含两个导出函数：`createToolFingerprint` 和 `checkLoop`，用于检测 Agent 是否陷入「重复工具调用」循环
+- `createToolFingerprint(name, argumentsString)`：生成工具调用的「指纹」，把工具名和参数拼接成字符串 `${name}:${argumentsString}`，用于判断两次工具调用是否「完全一样」（同名且同参数）
+- `checkLoop(fingerprint, toolHistory)`：接收一个指纹和一个 `Map`（重复计数器 `toolHistory`，由外部传入）；先取出该指纹当前计数，加 1 后写回；根据累计次数返回状态：`newCount >= 3` → 返回 `"break"`（重复调用 3 次，应跳出/停止）；`newCount === 2` → 返回 `"warn"`（已第二次重复，给出警告）；其他情况 → 返回 `"ok"`（正常）
+- 与主循环关系：在 `src/agent/agent.ts` 主循环中，每次执行工具调用前都会 ① 用 `createToolFingerprint` 生成指纹；② 用 `checkLoop` 检查是否重复调用；③ 根据返回的 `"break"` 或 `"warn"` 决定停止 Agent 还是给模型发送「检测到重复调用」的提醒。由此形成「最大轮数熔断 + 重复调用检测」双重安全机制中的重复调用检测部分
+
+## src/safety/loopDetector.ts 当前源码（已实际读取确认）
+```ts
+// const toolHistory = new Map<string, number>()//重复计数器
+
+//生成指纹
+export function createToolFingerprint(
+  name: string,
+  argumentsString: string,
+) {
+  return `${name}:${argumentsString}`
+}
+
+//检查重复调用，重复调用3次则跳出循环
+export function checkLoop(fingerprint: string, toolHistory: Map<string, number>) {
+  const count = toolHistory.get(fingerprint) ?? 0
+  const newCount = count + 1
+  toolHistory.set(fingerprint, newCount)
+  if (newCount >= 3) {
+    return "break"
+  }
+  if (newCount === 2) {
+    return "warn"
+  }
+  return "ok"
+}
+```
+
 ## tests/text.txt 文件内容（已通过实际读取确认）
 - 是一份说明文档，标题为「src/index.ts 与 src/agent/agent.ts 主要作用说明」
 - 内容分为两大部分：第一部分说明 `src/index.ts` 的主要作用；第二部分说明 `src/agent/agent.ts` 的主要作用
@@ -149,3 +183,5 @@ export async function loadSkill(skillPath: string) {
 - 任务六（后续追问）：用户回复「可以。」后，Agent 重新读取 `src/tools/readFile.ts` 当前源码并逐条核对，确认源码与历史摘要中的 readFile.ts 记录**完全一致**（导入 `node:fs/promises` 的 `fs`、导出异步函数 `readFile(filePath: string)`、使用 `fs.readFile(filePath, "utf-8")` 读取、`try/catch` 统一返回 `{ success, content }` / `{ success, error }`、错误信息取 `Error.message` 或 `String(error)`），**未发现新增代码行或逻辑变更**；同时再次澄清本次对话没有写入或修改 Memory（当前只有 `read_file` 和 `write_file` 两个工具，读取操作不会触发 Memory 写入），并说明系统给的 Memory 中**没有关于 readFile.ts 的独立条目**，相关信息只存在于之前对话的历史摘要中且与当前源码一致；邀请用户贴出认为「新增」的文字以便逐条核对。该结果与「文件读取工具结构」及「src/tools/readFile.ts 当前源码」记录一致，未发现矛盾
 - 任务七：询问「看看context目录下的context.ts文件有哪些内容？」，Agent 指出 `context/context.ts` 这个路径不存在，实际文件位于 `src/context/context.ts`，并成功读取内容：该文件导入 OpenAI SDK 的类型 `ChatCompletionMessageParam`，导出 `createContext` 与 `addMessage` 两个函数——`createContext` 把 systemPrompt、长期 Memory、userInput 组装成 `ChatCompletionMessageParam[]` 初始消息数组（system 消息内容为 systemPrompt +「以下是 Agent 的长期 Memory：」区块拼接 memory，user 消息内容为 userInput）；`addMessage` 通过 `messages.push(message)` 向上下文追加消息。Agent 还说明了执行流程：`createContext` 生成初始上下文 → 主循环中用 `addMessage` 累积 assistant 消息与工具调用结果 → 每次调用 LLM 时把该消息数组作为上下文传入。该结果与新增的「上下文构建模块结构（src/context/context.ts）」及「src/context/context.ts 当前源码」记录一致，未发现矛盾
 - 任务八：询问「帮我看看loadskill.ts这个文件主要是干啥的，然后告诉我。」，Agent 指出 `loadskill.ts` 的实际路径是 `src/skills/loadskill.ts`，并成功读取内容：该文件从 `../tools/readFile.js` 导入 `readFile`，导出异步函数 `loadSkill(skillPath: string)`，内部直接 `return await readFile(skillPath)`。Agent 说明其作用就是「加载（读取）一个 Skill 文件」，本质是 `readFile` 的薄封装（别名），没有额外逻辑，不解析、不校验内容，只负责把 Skill 文件内容读出来返回。该结果与新增的「Skill 加载工具结构（src/skills/loadskill.ts）」及「src/skills/loadskill.ts 当前源码」记录一致，未发现矛盾
+- 任务九：询问「帮我看看loopDetector.ts这个文件里有什么内容？」，Agent 指出 `loopDetector.ts` 的实际位置是 `src/safety/loopDetector.ts`（不是根目录、`src/security` 或 `src/utils` 下），并成功读取内容：该文件包含 `createToolFingerprint` 和 `checkLoop` 两个导出函数，用于检测 Agent 是否陷入「重复工具调用」循环。`createToolFingerprint(name, argumentsString)` 生成 `${name}:${argumentsString}` 形式的工具调用指纹（同名且同参数视为完全一样）；`checkLoop(fingerprint, toolHistory)` 维护重复计数，累计达到 3 次返回 `"break"`、2 次返回 `"warn"`、否则返回 `"ok"`。Agent 还说明了与主循环的关系：`src/agent/agent.ts` 每次执行工具调用前都会先生成指纹再检查，形成「最大轮数熔断 + 重复调用检测」双重安全机制中的重复调用检测部分。该结果与新增的「循环检测工具结构（src/safety/loopDetector.ts）」及「src/safety/loopDetector.ts 当前源码」记录一致，未发现矛盾
+- 任务十：用户要求「再给我按照刚才你的生成精简一点给我讲一下」（即用更精简的方式重讲 loopDetector.ts），Agent 给出了精简版说明：`loopDetector.ts` 的作用是防止 Agent 重复调用同一个工具陷入死循环，只做两件事——① `createToolFingerprint` 把「工具名 + 参数」拼成唯一标识（指纹）；② `checkLoop` 统计同一指纹出现次数：第 1 次返回 `ok`（正常）、第 2 次返回 `warn`（警告）、第 3 次及以上返回 `break`（停止）。结论：同一个工具带同样的参数被连续调用 3 次，就判定为死循环并中止。该精简说明与「循环检测工具结构」及「src/safety/loopDetector.ts 当前源码」记录一致，未发现矛盾
