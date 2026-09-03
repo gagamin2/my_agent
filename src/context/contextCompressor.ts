@@ -9,6 +9,28 @@ const client = new OpenAI({
 const MAX_MESSAGES = 10
 const RECENT_MESSAGES = 6
 
+//处理错误的Tool信息
+function hasInvalidToolMessage(
+  messages: ChatCompletionMessageParam[],
+): boolean {
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i]
+    if (!message) {continue}
+    if (message.role !== "tool") {continue}
+
+    const previousMessage = messages[i - 1]
+    if (
+      !previousMessage ||
+      previousMessage.role !== "assistant" ||
+      !previousMessage.tool_calls
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
+//压缩上下文
 export async function compressContext(
   messages: ChatCompletionMessageParam[],
 ): Promise<ChatCompletionMessageParam[]> {
@@ -32,9 +54,11 @@ export async function compressContext(
   
   //找最近消息，只保留需要的字段
   let recentStart = Math.max(1,messages.length - RECENT_MESSAGES)
-
-  // 如果最近消息是tool，就一同保留assistant(tool_calls)
-  if (messages[recentStart]?.role === "tool") {
+  // 如果最近消息是tool，就一同保留前面所有assistant(tool_calls)
+  while (
+    recentStart > 1 &&
+    messages[recentStart]?.role === "tool"
+  ) {
     recentStart--
   }
 
@@ -96,9 +120,16 @@ export async function compressContext(
 ${summary}`,
   }
 
-  return [
+  const compressedMessages: ChatCompletionMessageParam[] = [
     systemMessage,
     summaryMessage,
     ...recentMessages,
   ]
+
+  if (hasInvalidToolMessage(compressedMessages)) {
+  console.error("Context 压缩后检测到非法 Tool 消息，保留原始 Context。")
+
+  return messages
+}
+return compressedMessages
 }

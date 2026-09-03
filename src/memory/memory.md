@@ -13,175 +13,86 @@
 - 上下文构建模块：`src/context/context.ts`（提供 `createContext` 与 `addMessage`）
 - 自定义工具：`src/tools/readFile.ts`（文件读取）、`writeFileTool`（文件写入）
 - 技能加载模块：`src/skills/loadskill.ts`（Skill 加载工具）
-- 安全函数：`createToolFingerprint`（工具指纹生成）、`checkLoop`（循环检测），位于 `src/safety/loopDetector.ts`
+- 安全模块：`src/safety/loopDetector.ts`（循环检测）、`src/safety/tokenBudget.ts`（Token 预算）、`src/safety/truncationRecovery.ts`（截断恢复）
+- 提示词模块：`src/prompt/promptManager.ts`（提示词管理）、`src/prompt/systemPrompt.ts`（系统提示词定义）
 - LLM SDK：OpenAI SDK，使用 DeepSeek 的 OpenAI 兼容接口，API Key 来自环境变量
 - 项目类型：Agent 项目
 
-## 入口文件结构（src/index.ts）
-- `import "dotenv/config"` 加载环境变量（尤其是 `DEEPSEEK_API_KEY`）
-- `import { runAgent } from "./agent/agent.js"` 导入 Agent 执行器
-- `import { readFile } from "./tools/readFile.js"` 导入文件读取工具
-- 使用 `async function main()` + `await runAgent(...)` 异步执行，`const` 声明变量，符合现代 TypeScript 风格
-- main 函数保留了几段注释掉的调用示例（测试纯对话、单独测试读文件、测试循环检测熔断）
-- 当前实际生效的指令：让 Agent 读取两个源文件、分析作用并写入 `tests/text.txt`（覆盖旧内容），最后用 `console.log(result)` 输出结果
-- 文件末尾直接调用 `main()`
-- 小结：`src/index.ts` 相当于「程序入口 + 任务编排器 + 环境初始化器 + 调用示例展示」
+## 项目根目录（已确认）
+- 项目根目录为 **`D:\my_agent`**
+- 依据：Agent 尝试读取文件时使用的绝对路径为 `D:\my_agent\abc.ts` 和 `D:\my_agent\src\abc.ts`
 
-## 核心执行器结构（src/agent/agent.ts）
-- 是整个 Agent 系统的核心实现文件，定义了一个支持工具调用、多轮循环、安全检测的 LLM Agent
-- 依赖导入与配置：引入 OpenAI SDK、`readFile` 与 `writeFileTool` 工具、`createToolFingerprint` 和 `checkLoop` 安全函数，并定义 `MAX_TURNS = 10` 作为保险丝
-- 创建 LLM 客户端：使用 DeepSeek 的 OpenAI 兼容接口，API Key 来自环境变量
-- 工具声明：以 Function Calling 的 JSON Schema 形式声明了 `read_file` 和 `write_file` 两个工具
-- 工具执行器（executeTool）：解析参数并根据工具名分派执行，未知工具名会抛错
-- Agent 主循环（runAgent）：最多执行 10 轮，每轮调用模型、处理 `tool_calls`、执行工具并把结果回传，直到模型给出最终答案；具备「最大轮数熔断」和「重复调用检测」双重安全机制
-- 小结：`src/agent/agent.ts` 将 LLM 的推理能力与本地文件读写能力连接起来，形成可自主完成「读取文件 → 分析内容 → 写入文件」等任务的智能体
+## abc.ts 文件不存在（已确认）
+- 项目中没有 `abc.ts` 这个文件
+- Agent 曾尝试读取以下两个位置，均返回「文件不存在」：
+  - `D:\my_agent\abc.ts`
+  - `D:\my_agent\src\abc.ts`
+- 用户曾询问 `abc.ts` 的用途，Agent 未能找到该文件，已向用户请求提供完整路径（如 `src/xxx/abc.ts`）
 
-## 上下文构建模块结构（src/context/context.ts）
-- 该文件负责构建和管理 LLM Agent 的对话上下文（消息列表），把「系统提示词」「用户输入」「长期 Memory」组装成 OpenAI 兼容的 `ChatCompletionMessageParam[]` 消息数组
-- 依赖导入：从 `openai/resources/chat/completions` 导入类型 `ChatCompletionMessageParam`（仅作类型标注使用）
-- 导出两个函数：`createContext` 和 `addMessage`
-- `createContext(systemPrompt, userInput, memory)`：返回一个初始消息数组，包含两条消息——① `system` 角色消息，内容为 `systemPrompt` 加上一段「以下是 Agent 的长期 Memory：」区块并把 `memory` 拼接进去；② `user` 角色消息，内容为 `userInput`。这是每次启动 Agent 时构造初始上下文的入口函数
-- `addMessage(messages, message)`：接收现有的 `messages` 数组和一条新的 `message`，通过 `messages.push(message)` 把新消息追加到上下文末尾，用于在多轮对话/工具调用过程中持续累积上下文
-- 执行流程：调用 `createContext` 生成包含「system + user」的初始消息数组 → Agent 主循环中通过 `addMessage` 不断把模型返回的 assistant 消息、工具调用结果等追加进同一数组 → 每次调用 LLM 时把该消息数组作为上下文传入，使模型拥有完整对话历史和长期记忆
+## abcyyy.ts 文件不存在（已确认）
+- 项目中没有 `abcyyy.ts` 这个文件
+- Agent 曾尝试读取以下两个位置，均返回「文件不存在」：
+  - `D:\my_agent\abcyyy.ts`
+  - `D:\my_agent\src\abcyyy.ts`
+- 用户曾询问 `abcyyy.ts` 主要是什么内容，Agent 未能找到该文件，已向用户请求提供完整路径（例如 `src/xxx/abcyyy.ts`）或确认文件名是否拼写正确（如是否位于某个子目录下）
 
-## src/context/context.ts 当前源码（已实际读取确认）
-```ts
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
+## 技能加载模块 loadSkill.ts（已确认内容）
+- `src/skills/loadskill.ts` 导出异步函数 `loadSkill(skillPath: string)`，接收 Skill 文件路径，内部调用并 `await` `readFile(skillPath)`，返回读取到的文件内容
+- 它从 `../tools/readFile.js` 导入 `readFile` 工具函数
+- 本质：`loadSkill` 是对 `readFile` 工具的轻量语义化封装，专门用于「加载技能（Skill）」场景，方便其他模块以更直观的方式调用
 
-//创建初始上下文
-export function createContext(
-  systemPrompt: string,
-  userInput: string,
-  memory: string,
-): ChatCompletionMessageParam[] {
-  return [
-    {
-      role: "system",
-      content: `${systemPrompt}
+## "保险丝"（熔断）机制实现（已确认）
+项目中"保险丝"并非单一模块，而是一组分布在 `src/agent`、`src/safety`、`src/prompt` 中的多层安全熔断体系，用于防止 Agent 无限运行、浪费资源或陷入循环。
 
-以下是 Agent 的长期 Memory：
+### 1. 核心保险丝：最大执行轮数
+- 位置：`src/agent/agent.ts`
+- `const MAX_TURNS = 10 // 保险丝：最大执行轮数`
+- `runAgent` 主循环最多执行 10 轮，达到上限即停止，返回"Agent 达到最大执行轮数，已停止。"
+- 这是项目中唯一被显式注释为"保险丝"的机制。
 
-${memory}`,
-    },
-    {
-      role: "user",
-      content: userInput,
-    }
-  ]
-} 
+### 2. Token 预算保险丝（已确认实现细节）
+- 位置：`src/safety/tokenBudget.ts`
+- 常量：`const TOKEN_BUDGET = 8000`（预算上限）、`const NUDGE = 0.8`（提醒阈值 80%）
+- 函数签名：`export function checkBudget(outputTokens: number, totalOutput: number)`
+- 工作机制：
+  - 每次把本次消耗的 `outputTokens` 累加到 `totalOutput` 上（函数内部 `totalOutput += outputTokens`）
+  - 累计值 `>= 8000` → 返回 `{ status: "stop", totalOutput }`（熔断，停止执行）
+  - 累计值 `>= 6400`（80%）且 `< 8000` → 返回 `{ status: "nudge", totalOutput }`（提醒尽快结束）
+  - 其余情况 → 返回 `{ status: "ok", totalOutput }`（正常继续）
+  - 返回值为对象 `{ status, totalOutput }`，而非仅状态字符串
+- 对应提醒提示词（`src/prompt/systemPrompt.ts`）："Token预算即将耗尽。请减少不必要的工具调用，尽快完成当前任务。"
+- 一句话概括：**超 8000 停、到 6400 提醒、否则放行**
 
-//往context里添加信息。
-export function addMessage(
-  messages: ChatCompletionMessageParam[],
-  message: ChatCompletionMessageParam,
-) {
-  messages.push(message)
-}
+### 3. 循环检测保险丝
+- 位置：`src/safety/loopDetector.ts`
+- `createToolFingerprint(name, argumentsString)` 生成工具调用指纹 `${name}:${argumentsString}`
+- `checkLoop(fingerprint, toolHistory)` 判定：
+  - 同一指纹重复 2 次 → `warn`（警告）
+  - 同一指纹重复 3 次及以上 → `break`（终止循环）
+- 对应警告提示词："检测到你正在重复调用相同的工具。请检查当前任务是否陷入循环，并尝试改变执行策略。"
+
+### 4. 截断恢复保险丝
+- 位置：`src/safety/truncationRecovery.ts`
+- `const MAX_RECOVERY = 3`（允许最多截断恢复次数）
+- `handleTruncation(messages, recoveryCount)`：
+  - 每次被截断后 `recoveryCount++`
+  - 达到 3 次后返回 `give_up`（放弃）
+  - 未达上限时向消息中注入提示，引导模型"从断点继续 / 精简输出"，返回 `retry`
+
+### 5. 模型请求重试
+- 在 `src/agent/agent.ts` 中，模型请求失败时最多重试 3 次，属于轻量级熔断保护。
+
+### 保险丝协作关系
+```
+Agent 主循环 (runAgent)
+├─ MAX_TURNS = 10           ← 总轮数熔断
+├─ Token 预算检查            ← 资源熔断（nudge → stop）
+├─ 循环检测                 ← 行为熔断（warn → break）
+├─ 截断恢复（最多 3 次）      ← 异常熔断（retry → give_up）
+└─ 请求重试（最多 3 次）      ← 网络异常熔断
 ```
 
-## 文件读取工具结构（src/tools/readFile.ts）
-- 该文件封装了一个**异步读取文件内容的工具函数**，供 Agent 调用，用于读取本地文件并以 UTF-8 编码返回文本内容
-- 依赖导入：从 `node:fs/promises` 引入 Node.js 的 Promise 版文件系统模块 `fs`
-- 导出函数：`readFile(filePath: string)`，接收一个参数 `filePath`（要读取的文件路径，类型为 `string`），是 `async` 异步函数
-- 执行逻辑：使用 `fs.readFile(filePath, "utf-8")` 尝试读取文件内容
-  - 成功时返回 `{ success: true, content }`，其中 `content` 是读取到的文件文本内容
-  - 失败时通过 `try/catch` 捕获异常，返回 `{ success: false, error }`，其中 `error` 做了类型判断：如果 `error` 是 `Error` 实例就取 `error.message`，否则转成字符串
-- 小结：这是一个**安全、带错误处理的文件读取工具**，不会因为读取失败而抛出异常导致程序崩溃，而是统一返回带有 `success` 标志的结果对象，方便 Agent 根据 `success` 判断读取是否成功
-
-## src/tools/readFile.ts 当前源码（已实际读取确认）
-```ts
-import fs from "node:fs/promises"
-
-export async function readFile(filePath: string) {
-  try {
-    const content = await fs.readFile(filePath, "utf-8")
-
-    return {
-      success: true,
-      content,
-    }
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    }
-  }
-}
-```
-
-## Skill 加载工具结构（src/skills/loadskill.ts）
-- 该文件是一个 **Skill 加载工具**，作用非常简单：**加载（读取）一个 Skill 文件**
-- 依赖导入：从 `../tools/readFile.js` 导入已有的 `readFile` 工具函数
-- 导出函数：`loadSkill(skillPath: string)`，接收一个参数 `skillPath`（Skill 文件的路径），是 `async` 异步函数
-- 执行逻辑：内部直接调用 `readFile(skillPath)` 去读取该文件，并把结果原样返回，没有额外逻辑
-- 本质：它是 `readFile` 的薄封装（别名），把「读取文件」这个动作在语义上命名为「加载 Skill」，让代码意图更清晰——专门用来加载 Skill 定义/说明文件
-- 小结：`loadskill.ts` 本身不解析、不校验内容，只负责把 Skill 文件内容读出来返回
-
-## src/skills/loadskill.ts 当前源码（已实际读取确认）
-```ts
-import { readFile } from "../tools/readFile.js"
-
-export async function loadSkill(skillPath: string) {
-  return await readFile(skillPath)
-}
-```
-
-## 循环检测工具结构（src/safety/loopDetector.ts）
-- 该文件位于 `src/safety/loopDetector.ts`（不是根目录、`src/security` 或 `src/utils` 下）
-- 包含两个导出函数：`createToolFingerprint` 和 `checkLoop`，用于检测 Agent 是否陷入「重复工具调用」循环
-- `createToolFingerprint(name, argumentsString)`：生成工具调用的「指纹」，把工具名和参数拼接成字符串 `${name}:${argumentsString}`，用于判断两次工具调用是否「完全一样」（同名且同参数）
-- `checkLoop(fingerprint, toolHistory)`：接收一个指纹和一个 `Map`（重复计数器 `toolHistory`，由外部传入）；先取出该指纹当前计数，加 1 后写回；根据累计次数返回状态：`newCount >= 3` → 返回 `"break"`（重复调用 3 次，应跳出/停止）；`newCount === 2` → 返回 `"warn"`（已第二次重复，给出警告）；其他情况 → 返回 `"ok"`（正常）
-- 与主循环关系：在 `src/agent/agent.ts` 主循环中，每次执行工具调用前都会 ① 用 `createToolFingerprint` 生成指纹；② 用 `checkLoop` 检查是否重复调用；③ 根据返回的 `"break"` 或 `"warn"` 决定停止 Agent 还是给模型发送「检测到重复调用」的提醒。由此形成「最大轮数熔断 + 重复调用检测」双重安全机制中的重复调用检测部分
-
-## src/safety/loopDetector.ts 当前源码（已实际读取确认）
-```ts
-// const toolHistory = new Map<string, number>()//重复计数器
-
-//生成指纹
-export function createToolFingerprint(
-  name: string,
-  argumentsString: string,
-) {
-  return `${name}:${argumentsString}`
-}
-
-//检查重复调用，重复调用3次则跳出循环
-export function checkLoop(fingerprint: string, toolHistory: Map<string, number>) {
-  const count = toolHistory.get(fingerprint) ?? 0
-  const newCount = count + 1
-  toolHistory.set(fingerprint, newCount)
-  if (newCount >= 3) {
-    return "break"
-  }
-  if (newCount === 2) {
-    return "warn"
-  }
-  return "ok"
-}
-```
-
-## tests/text.txt 文件内容（已通过实际读取确认）
-- 是一份说明文档，标题为「src/index.ts 与 src/agent/agent.ts 主要作用说明」
-- 内容分为两大部分：第一部分说明 `src/index.ts` 的主要作用；第二部分说明 `src/agent/agent.ts` 的主要作用
-- 文档结论：`src/index.ts` 是「程序入口 + 任务编排器 + 环境初始化器 + 调用示例展示」；`src/agent/agent.ts` 是 Agent 系统的核心实现，连接 LLM 推理能力与本地文件读写能力
-- 第一部分（src/index.ts 的作用）：程序入口文件，负责启动和编排 Agent 执行流程；通过 `import "dotenv/config"` 加载 `.env` 环境变量（尤其是 `DEEPSEEK_API_KEY`）；从 `./agent/agent.js` 导入 `runAgent`、从 `./tools/readFile.js` 导入 `readFile`；main 函数保留了几段注释掉的调用示例（测试纯对话、单独测试读文件、测试循环检测熔断），当前实际生效指令是让 Agent 读取两个源文件、分析作用并写入 `tests/text.txt`（覆盖旧内容），最后用 `console.log(result)` 输出结果；小结为「程序入口 + 任务编排器 + 环境初始化器 + 调用示例展示」
-- 第二部分（src/agent/agent.ts 的作用）：Agent 系统核心实现，支持工具调用、多轮循环、安全检测的 LLM Agent；引入 OpenAI SDK、读写工具、`createToolFingerprint` 和 `checkLoop` 安全函数，定义 `MAX_TURNS = 10` 作为保险丝；使用 DeepSeek 的 OpenAI 兼容接口创建 LLM 客户端（API Key 来自环境变量）；以 Function Calling 的 JSON Schema 形式声明 `read_file` 和 `write_file` 两个工具；工具执行器按工具名分派执行，未知工具名抛错；主循环最多执行 10 轮，具备「最大轮数熔断」和「重复调用检测」双重安全机制；小结为连接 LLM 推理能力与本地文件读写能力，可自主完成「读取文件 → 分析内容 → 写入文件」等任务
-
-## tests/text.txt 文件行数（已确认）
-- `tests/text.txt` 文件一共有 **96 行**（按文件内容的换行逐行统计的结果，包括空行和分隔线）
-
-## Agent 可用工具范围（已确认）
-- Agent 在任务中可用的自定义工具只有 **`read_file`** 和 **`write_file`** 两个，**没有**「写入/修改 Memory」的工具
-- 因此 Agent 无法在对话中直接新增、修改或删除长期 Memory；长期 Memory 由独立的 Memory Agent 负责维护，而不是任务执行 Agent 的职责
-
-## 最近任务记录（已确认）
-- 任务一：读取 `tests/text.txt` 并复述内容，Agent 已成功读取并复述，内容与上述「tests/text.txt 文件内容」记录一致，未发现内容变更或矛盾，说明该文件自上次写入后未被修改
-- 任务二（后续追问）：询问「刚才那个文件一共有多少行？」，Agent 根据此前读取的内容逐行统计，回答 `tests/text.txt` 一共有 **96 行**（包括空行和分隔线），与已确认的行数记录一致，未发现新变更或矛盾
-- 任务三：询问「请看看 readFile.ts 文件里的内容，并告诉我主要写了什么」，Agent 已成功读取并说明 `src/tools/readFile.ts` 的主要内容：它是一个异步文件读取工具函数，从 `node:fs/promises` 导入 `fs`，导出 `readFile(filePath: string)`，使用 `fs.readFile(filePath, "utf-8")` 读取文件，成功时返回 `{ success: true, content }`，失败时通过 `try/catch` 捕获并返回 `{ success: false, error }`（Error 实例取 `error.message`，否则转字符串）；小结为安全、带错误处理的文件读取工具，不会因读取失败而抛异常导致程序崩溃。该结果与新增的「文件读取工具结构（src/tools/readFile.ts）」记录一致，未发现矛盾
-- 任务四：询问「你刚才在memory里新写的内容是什么？」，Agent 正确澄清：本次任务中它**没有**向 Memory 写入任何新内容，只使用了 `read_file` 读取 `src/tools/readFile.ts`；并说明当前可用工具只有 `read_file` 和 `write_file`，没有「写入 Memory」的工具，因此无法在对话中新增、修改或删除 Memory；系统提示里的长期 Memory 是过去任务保存的历史信息，并非本次写入。Agent 回答准确、自我认知清晰，未发现矛盾
-- 任务五（后续追问）：用户质疑「你就是写了啊，我看那个内容有新增的」。Agent 再次如实澄清：本次对话中它没有执行任何「写入 Memory」的操作，也不具备这样的工具能力；它只有 `read_file` 和 `write_file` 两个工具，只能操作磁盘文件，不能修改系统 Memory；本次对话只做了一次 `read_file` 读取 `src/tools/readFile.ts` 的只读操作，不会产生任何写入；用户看到的「新增内容」很可能来自系统提示里的「长期 Memory」和之前对话的历史摘要（其中确实包含一条关于 readFile.ts 的记录），那条记录是更早任务中系统自动沉淀保存的历史摘要，而非本次新写，Agent 是被动接收它而无法主动增删；Agent 还邀请用户贴出认为「新增」的那段内容，以便逐条核对它到底来自旧的历史摘要还是与当前 `readFile.ts` 源码一致。Agent 回答准确、自我认知清晰，未发现矛盾，也未发现任务执行 Agent 实际修改 Memory 的证据
-- 任务六（后续追问）：用户回复「可以。」后，Agent 重新读取 `src/tools/readFile.ts` 当前源码并逐条核对，确认源码与历史摘要中的 readFile.ts 记录**完全一致**（导入 `node:fs/promises` 的 `fs`、导出异步函数 `readFile(filePath: string)`、使用 `fs.readFile(filePath, "utf-8")` 读取、`try/catch` 统一返回 `{ success, content }` / `{ success, error }`、错误信息取 `Error.message` 或 `String(error)`），**未发现新增代码行或逻辑变更**；同时再次澄清本次对话没有写入或修改 Memory（当前只有 `read_file` 和 `write_file` 两个工具，读取操作不会触发 Memory 写入），并说明系统给的 Memory 中**没有关于 readFile.ts 的独立条目**，相关信息只存在于之前对话的历史摘要中且与当前源码一致；邀请用户贴出认为「新增」的文字以便逐条核对。该结果与「文件读取工具结构」及「src/tools/readFile.ts 当前源码」记录一致，未发现矛盾
-- 任务七：询问「看看context目录下的context.ts文件有哪些内容？」，Agent 指出 `context/context.ts` 这个路径不存在，实际文件位于 `src/context/context.ts`，并成功读取内容：该文件导入 OpenAI SDK 的类型 `ChatCompletionMessageParam`，导出 `createContext` 与 `addMessage` 两个函数——`createContext` 把 systemPrompt、长期 Memory、userInput 组装成 `ChatCompletionMessageParam[]` 初始消息数组（system 消息内容为 systemPrompt +「以下是 Agent 的长期 Memory：」区块拼接 memory，user 消息内容为 userInput）；`addMessage` 通过 `messages.push(message)` 向上下文追加消息。Agent 还说明了执行流程：`createContext` 生成初始上下文 → 主循环中用 `addMessage` 累积 assistant 消息与工具调用结果 → 每次调用 LLM 时把该消息数组作为上下文传入。该结果与新增的「上下文构建模块结构（src/context/context.ts）」及「src/context/context.ts 当前源码」记录一致，未发现矛盾
-- 任务八：询问「帮我看看loadskill.ts这个文件主要是干啥的，然后告诉我。」，Agent 指出 `loadskill.ts` 的实际路径是 `src/skills/loadskill.ts`，并成功读取内容：该文件从 `../tools/readFile.js` 导入 `readFile`，导出异步函数 `loadSkill(skillPath: string)`，内部直接 `return await readFile(skillPath)`。Agent 说明其作用就是「加载（读取）一个 Skill 文件」，本质是 `readFile` 的薄封装（别名），没有额外逻辑，不解析、不校验内容，只负责把 Skill 文件内容读出来返回。该结果与新增的「Skill 加载工具结构（src/skills/loadskill.ts）」及「src/skills/loadskill.ts 当前源码」记录一致，未发现矛盾
-- 任务九：询问「帮我看看loopDetector.ts这个文件里有什么内容？」，Agent 指出 `loopDetector.ts` 的实际位置是 `src/safety/loopDetector.ts`（不是根目录、`src/security` 或 `src/utils` 下），并成功读取内容：该文件包含 `createToolFingerprint` 和 `checkLoop` 两个导出函数，用于检测 Agent 是否陷入「重复工具调用」循环。`createToolFingerprint(name, argumentsString)` 生成 `${name}:${argumentsString}` 形式的工具调用指纹（同名且同参数视为完全一样）；`checkLoop(fingerprint, toolHistory)` 维护重复计数，累计达到 3 次返回 `"break"`、2 次返回 `"warn"`、否则返回 `"ok"`。Agent 还说明了与主循环的关系：`src/agent/agent.ts` 每次执行工具调用前都会先生成指纹再检查，形成「最大轮数熔断 + 重复调用检测」双重安全机制中的重复调用检测部分。该结果与新增的「循环检测工具结构（src/safety/loopDetector.ts）」及「src/safety/loopDetector.ts 当前源码」记录一致，未发现矛盾
-- 任务十：用户要求「再给我按照刚才你的生成精简一点给我讲一下」（即用更精简的方式重讲 loopDetector.ts），Agent 给出了精简版说明：`loopDetector.ts` 的作用是防止 Agent 重复调用同一个工具陷入死循环，只做两件事——① `createToolFingerprint` 把「工具名 + 参数」拼成唯一标识（指纹）；② `checkLoop` 统计同一指纹出现次数：第 1 次返回 `ok`（正常）、第 2 次返回 `warn`（警告）、第 3 次及以上返回 `break`（停止）。结论：同一个工具带同样的参数被连续调用 3 次，就判定为死循环并中止。该精简说明与「循环检测工具结构」及「src/safety/loopDetector.ts 当前源码」记录一致，未发现矛盾
+## 历史问答（已确认）
+- 用户曾询问「不要看源码，但是简要给我讲讲这个项目中Token预算保险丝是怎么实现的」
+- Agent 基于既有 Memory 内容回答（未读取源码），答案与 Memory 中「Token 预算保险丝」条目一致
+- 本次问答未产生新的源码事实，仅验证了已有 Memory 中 Token 预算保险丝描述的准确性
