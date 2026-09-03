@@ -69,6 +69,7 @@ async function createChatCompletion(
 export async function runAgent(userInput: string,session: Session) {
   const analysisSkill = await loadSkill("./src/skills/fileAnalysis.md")
   const debuggingSkill = await loadSkill("./src/skills/debugging.md")
+  const testingSkill = await loadSkill("./src/skills/testing.md")
   // console.log(skill)
 
   // 读取长期 Memory
@@ -81,7 +82,10 @@ export async function runAgent(userInput: string,session: Session) {
 ${analysisSkill.content}
 
 当前可用 Debugging Skill：
-${debuggingSkill.content}`
+${debuggingSkill.content}
+
+当前可用 Testing Skill：
+${testingSkill.content}`
 
   //用户与模型的对话记录（后面使用同一Session时不重新创建Context）
   if (session.messages.length === 0) {
