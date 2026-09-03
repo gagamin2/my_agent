@@ -67,7 +67,8 @@ async function createChatCompletion(
 
 //Agent入口
 export async function runAgent(userInput: string,session: Session) {
-  const skill = await loadSkill("./src/skills/fileAnalysis.md")
+  const analysisSkill = await loadSkill("./src/skills/fileAnalysis.md")
+  const debuggingSkill = await loadSkill("./src/skills/debugging.md")
   // console.log(skill)
 
   // 读取长期 Memory
@@ -76,8 +77,11 @@ export async function runAgent(userInput: string,session: Session) {
   //console.log(memory)
 
   const systemPrompt = `${getSystemPrompt()}
-当前可用 Skill：
-${skill.content}`//系统提示词+skill
+当前可用 Code Analysis Skill：
+${analysisSkill.content}
+
+当前可用 Debugging Skill：
+${debuggingSkill.content}`
 
   //用户与模型的对话记录（后面使用同一Session时不重新创建Context）
   if (session.messages.length === 0) {
@@ -159,6 +163,12 @@ ${skill.content}`//系统提示词+skill
       if (toolCall.type !== "function") {
       continue
     }//执行所有返回的Toolcall
+    console.log(
+      `Agent 调用工具：${toolCall.function.name}`,
+    )
+    console.log(
+      `工具参数：${toolCall.function.arguments}`,
+    )
 
     //生成指纹，并检查是否有重复调用
     const fingerprint = createToolFingerprint(
