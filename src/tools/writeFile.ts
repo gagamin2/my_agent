@@ -1,6 +1,28 @@
 import { writeFile } from "fs/promises"
 
-export async function writeFileTool(
+export const writeFileTool = {
+  type: "function" as const,
+  function: {
+    name: "write_file",
+    description: "向指定文件写入内容",
+    parameters: {
+      type: "object",
+      properties: {
+        filePath: {
+          type: "string",
+          description: "需要写入的文件路径",
+        },
+        content: {
+          type: "string",
+          description: "需要写入文件的完整内容",
+        },
+      },
+      required: ["filePath", "content"],
+    },
+  },
+}
+
+export async function WriteFile(
   filePath: string,
   content: string,
 ) {

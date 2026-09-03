@@ -1,7 +1,7 @@
 import OpenAI from "openai"
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
-import { readFile } from "../tools/readFile.js"
-import { writeFileTool } from "../tools/writeFile.js"
+import {readFileTool, readFile } from "../tools/readFile.js"
+import {writeFileTool, WriteFile } from "../tools/writeFile.js"
 import {createToolFingerprint,checkLoop} from "../safety/loopDetector.js"
 import { checkBudget } from "../safety/tokenBudget.js"
 import { handleTruncation } from "../safety/truncationRecovery.js"
@@ -13,6 +13,7 @@ import { loadMemory } from "../memory/memoryManager.js"
 import { runMemoryAgent } from "../memory/memoryAgent.js"
 import type { Session } from "../session/session.js"
 import { compressContext } from "../context/contextCompressor.js"
+import {listFilesTool,executeListFiles} from "../tools/listFiles.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -21,48 +22,7 @@ const client = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
 })
 
-const tools = [
-  {
-    type: "function" as const,
-    function: {
-      name: "read_file",
-      description: "读取指定文件的内容",
-      parameters: {
-        type: "object",
-        properties: {
-          filePath: {
-            type: "string",
-            description: "需要读取的文件路径",
-          },
-        },
-        required: ["filePath"],
-      },
-    },
-  },
-
-  {
-    type: "function" as const,
-    function: {
-      name: "write_file",
-      description: "向指定文件写入内容",
-      parameters: {
-        type: "object",
-        properties: {
-          filePath: {
-            type: "string",
-            description: "需要写入的文件路径",
-          },
-          content: {
-            type: "string",
-            description: "需要写入文件的完整内容",
-          },
-        },
-        required: ["filePath", "content"],
-      },
-    },
-  },
-]
-
+const tools = [readFileTool,writeFileTool,listFilesTool]
 //工具执行器
 async function executeTool(
   name: string,
@@ -74,7 +34,10 @@ async function executeTool(
     return await readFile(args.filePath)
   }
   if (name === "write_file") {
-    return await writeFileTool(args.filePath,args.content)
+    return await WriteFile(args.filePath,args.content)
+  }
+  if (name === "list_files") {
+    return await executeListFiles(args.path)
   }
 
   throw new Error(`Unknown tool: ${name}`)
