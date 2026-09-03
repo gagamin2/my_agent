@@ -1,7 +1,5 @@
 import OpenAI from "openai"
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
-import {readFileTool, readFile } from "../tools/readFile.js"
-import {writeFileTool, WriteFile } from "../tools/writeFile.js"
 import {createToolFingerprint,checkLoop} from "../safety/loopDetector.js"
 import { checkBudget } from "../safety/tokenBudget.js"
 import { handleTruncation } from "../safety/truncationRecovery.js"
@@ -13,8 +11,11 @@ import { loadMemory } from "../memory/memoryManager.js"
 import { runMemoryAgent } from "../memory/memoryAgent.js"
 import type { Session } from "../session/session.js"
 import { compressContext } from "../context/contextCompressor.js"
-import {listFilesTool,executeListFiles} from "../tools/listFiles.js"
-import {searchFilesTool, searchFiles} from "../tools/searchFiles.js"
+import { readFileTool } from "../tools/readFile.js"
+import { writeFileTool } from "../tools/writeFile.js"
+import { listFilesTool } from "../tools/listFiles.js"
+import { searchFilesTool } from "../tools/searchFiles.js"
+import { toolRegistry } from "../tools/toolRegistry.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -30,21 +31,12 @@ async function executeTool(
   argumentsString: string,
 ) {
   const args = JSON.parse(argumentsString)
+  const tool = toolRegistry[name as keyof typeof toolRegistry]
 
-  if (name === "read_file") {
-    return await readFile(args.filePath)
+  if (!tool) {
+    throw new Error(`Unknown tool: ${name}`)
   }
-  if (name === "write_file") {
-    return await WriteFile(args.filePath,args.content)
-  }
-  if (name === "list_files") {
-    return await executeListFiles(args.path)
-  }
-  if (name === "search_files") {
-    return await searchFiles(args.query,args.directory)
-}
-
-  throw new Error(`Unknown tool: ${name}`)
+  return await tool(args)
 }
 
 //模型api重试函数
