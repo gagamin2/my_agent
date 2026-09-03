@@ -155,7 +155,10 @@ ${skill.content}`//系统提示词+skill
     continue
   }
 
-  addMessage(session.messages, message)
+  addMessage(session.messages, {
+    ...message,
+    content: message.content ?? "",
+  })
   //console.log("模型回复：", message.content)
   //console.dir(message, { depth: null })
   // console.log(
@@ -216,13 +219,20 @@ ${skill.content}`//系统提示词+skill
       // })
     }
 
-    const result = await executeTool(
+    let result
+    try {
+    result = await executeTool(
       toolCall.function.name,
       toolCall.function.arguments,
     )
-
     // console.log("Tool result:")
     // console.log(result)
+    }catch(error){
+      result = {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    }
+}
 
     addMessage(session.messages, {
       role: "tool",
