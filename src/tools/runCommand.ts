@@ -1,4 +1,6 @@
 import { exec } from "node:child_process"
+import { checkCommand } from "../security/commandPolicy.js"
+import { requestPermission } from "../security/permission.js"
 
 export const runCommandTool = {
   type: "function" as const,
@@ -21,8 +23,31 @@ export const runCommandTool = {
 export async function runCommand(
   command: string,
 ) {
+  const policyResult = checkCommand(command)
+
+  //危险操作询问用户
+  if (policyResult.risk === "dangerous") {
+    const allowed = await requestPermission(
+      command,
+      policyResult.reason ?? "该命令存在潜在风险",
+    )
+
+    if (!allowed) {
+      return {
+        success: false,
+        blocked: true,
+        reason: "用户拒绝执行该命令",
+        stdout: "",
+        stderr: "",
+        exitCode: null,
+      }
+    }
+  }
+
   return await new Promise<{
     success: boolean
+    blocked?: boolean
+    reason?: string
     stdout: string
     stderr: string
     exitCode: number | null
@@ -30,7 +55,7 @@ export async function runCommand(
     exec(
       command,
       {
-        cwd: process.cwd(),//工作目录
+        cwd: process.cwd(),
         timeout: 30_000,
       },
       (error, stdout, stderr) => {
