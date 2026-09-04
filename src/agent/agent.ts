@@ -112,16 +112,18 @@ ${gitSkill.content}`
     i++
     console.log(`\nAgent 第 ${i} 轮：`)
     //压缩上下文（下一次发送给模型之前）
-  session.messages = await compressContext(session.messages)
+  const context = await compressContext(session.messages)
+
     //首次请求
-  const response = await createChatCompletion(session.messages)
+  // const response = await createChatCompletion(session.messages)
+  const response = await createChatCompletion(context)
   //模型返回信息
   const message = response.choices[0]!.message
 
   //检查截断原因并做出相关反应
   const finishReason = response.choices[0]?.finish_reason
   if (finishReason === "length") {
-    const recoveryResult = handleTruncation(session.messages,recoveryCount)
+    const recoveryResult = handleTruncation(context,recoveryCount)
     recoveryCount = recoveryResult.recoveryCount
 
     if (recoveryResult.status === "give_up") {
