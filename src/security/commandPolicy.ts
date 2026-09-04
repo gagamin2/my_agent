@@ -60,6 +60,10 @@ const confirmPatterns = [
     pattern: /^move\s+/i,
     reason: "move 可能移动或覆盖文件",
   },
+  {
+    pattern: />{1,2}/,
+    reason: "Shell 重定向可能覆盖或修改文件内容",
+  },
 ]
 
 function splitCommand(command: string): string[] {
@@ -98,3 +102,4 @@ export function checkCommand(
     risk: "safe",
   }
 }
+// security test

@@ -1,6 +1,7 @@
 import { exec } from "node:child_process"
 import { checkCommand } from "../security/commandPolicy.js"
 import { requestPermission } from "../security/permission.js"
+import type { Interface } from "node:readline/promises"
 
 export const runCommandTool = {
   type: "function" as const,
@@ -22,6 +23,7 @@ export const runCommandTool = {
 
 export async function runCommand(
   command: string,
+  rl: Interface,
 ) {
   const policyResult = checkCommand(command)
 
@@ -41,6 +43,7 @@ export async function runCommand(
   // 危险操作询问用户
   if (policyResult.risk === "confirm") {
     const allowed = await requestPermission(
+      rl,
       command,
       policyResult.reason ??
         "该命令存在潜在风险",

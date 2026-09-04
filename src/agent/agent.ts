@@ -18,6 +18,7 @@ import { searchFilesTool } from "../tools/searchFiles.js"
 import { toolRegistry } from "../tools/toolRegistry.js"
 import { runCommandTool } from "../tools/runCommand.js"
 import { Skills } from "openai/resources"
+import type { Interface } from "node:readline/promises"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -31,6 +32,7 @@ const tools = [readFileTool,writeFileTool,listFilesTool, searchFilesTool,runComm
 async function executeTool(
   name: string,
   argumentsString: string,
+  rl: Interface,
 ) {
   const args = JSON.parse(argumentsString)
   const tool = toolRegistry[name as keyof typeof toolRegistry]
@@ -38,7 +40,7 @@ async function executeTool(
   if (!tool) {
     throw new Error(`Unknown tool: ${name}`)
   }
-  return await tool(args)
+  return await tool(args,rl)
 }
 
 //模型api重试函数
@@ -67,7 +69,7 @@ async function createChatCompletion(
 }
 
 //Agent入口
-export async function runAgent(userInput: string,session: Session) {
+export async function runAgent(userInput: string,session: Session,rl: Interface,) {
   const analysisSkill = await loadSkill("./src/skills/fileAnalysis.md")
   const debuggingSkill = await loadSkill("./src/skills/debugging.md")
   const testingSkill = await loadSkill("./src/skills/testing.md")
@@ -203,6 +205,7 @@ ${gitSkill.content}`
     result = await executeTool(
       toolCall.function.name,
       toolCall.function.arguments,
+      rl,
     )
     // console.log("Tool result:")
     // console.log(result)

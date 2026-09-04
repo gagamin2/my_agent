@@ -17,10 +17,7 @@ async function main() {
     if (userInput.trim() === "exit") {
       break
     }
-    const result = await runAgent(
-      userInput,
-      session,
-    )
+    const result = await runAgent(userInput,session,rl)
     console.log("Agent：")
     console.log(result)
   }
