@@ -8,7 +8,9 @@ import { stdin as input, stdout as output } from "node:process"
 import { loadSession, saveSession } from "./session/sessionManager.js"
 
 async function main() {
-  const session =(await loadSession()) ?? createSession()
+  // const sessionId = createSession().sessionId
+  // const session =(await loadSession(sessionId)) ?? createSession()
+  const session = createSession()
   const rl = createInterface({input,output})
   console.log("Agent 已启动，可以开始对话。")
   console.log("输入 exit 退出。")

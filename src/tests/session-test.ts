@@ -8,53 +8,163 @@ import {
 } from "../session/sessionManager.js"
 
 async function main() {
-  console.log("开始测试 Session Persistence\n")
+  console.log("开始测试 Multi Session Persistence\n")
 
-  // 1. 创建一个 Session
-  const session = createSession()
+  // =========================
+  // ① 创建 Session A
+  // =========================
 
-  session.messages.push({
+  const sessionA = createSession()
+
+  sessionA.messages.push({
     role: "user",
-    content: "你好，我正在学习 TypeScript",
+    content: "这是 Session A 的消息",
   })
 
-  console.log("① 创建 Session")
-  console.log("sessionId:", session.sessionId)
+  console.log("① 创建 Session A")
+  console.log("sessionId:", sessionA.sessionId)
 
-  // 2. 保存 Session
-  await saveSession(session)
+  await saveSession(sessionA)
 
-  console.log("\n② 保存 Session")
-  console.log("Session 保存成功")
+  console.log("Session A 保存成功")
 
-  // 3. 重新读取 Session
-  const loadedSession = await loadSession()
 
-  console.log("\n③ 加载 Session")
+  // =========================
+  // ② 创建 Session B
+  // =========================
 
-  if (!loadedSession) {
-    console.log("❌ 加载失败")
+  const sessionB = createSession()
+
+  sessionB.messages.push({
+    role: "user",
+    content: "这是 Session B 的消息",
+  })
+
+  console.log("\n② 创建 Session B")
+  console.log("sessionId:", sessionB.sessionId)
+
+  await saveSession(sessionB)
+
+  console.log("Session B 保存成功")
+
+
+  // =========================
+  // ③ 分别加载两个 Session
+  // =========================
+
+  const loadedSessionA =
+    await loadSession(
+      sessionA.sessionId,
+    )
+
+  const loadedSessionB =
+    await loadSession(
+      sessionB.sessionId,
+    )
+
+  console.log("\n③ 分别加载 Session A 和 Session B")
+
+
+  // =========================
+  // ④ 检查加载结果
+  // =========================
+
+  if (!loadedSessionA || !loadedSessionB) {
+    console.log("❌ Session 加载失败")
     process.exitCode = 1
     return
   }
 
-  console.log("sessionId:", loadedSession.sessionId)
+  console.log(
+    "Session A:",
+    loadedSessionA.sessionId,
+  )
 
-  // 4. 检查数据是否一致
-  const sessionIdCorrect =
-    loadedSession.sessionId === session.sessionId
+  console.log(
+    "Session B:",
+    loadedSessionB.sessionId,
+  )
 
-  const messagesCorrect =
-    JSON.stringify(loadedSession.messages) ===
-    JSON.stringify(session.messages)
 
-  if (sessionIdCorrect && messagesCorrect) {
-    console.log("\n🎉 Session Persistence 测试通过！")
+  // =========================
+  // ⑤ 检查 Session 是否互相独立
+  // =========================
+
+  const sessionAIdCorrect =
+    loadedSessionA.sessionId ===
+    sessionA.sessionId
+
+  const sessionBIdCorrect =
+    loadedSessionB.sessionId ===
+    sessionB.sessionId
+
+  const sessionAMessageCorrect =
+    JSON.stringify(
+      loadedSessionA.messages,
+    ) ===
+    JSON.stringify(
+      sessionA.messages,
+    )
+
+  const sessionBMessageCorrect =
+    JSON.stringify(
+      loadedSessionB.messages,
+    ) ===
+    JSON.stringify(
+      sessionB.messages,
+    )
+
+  const sessionsAreIndependent =
+    loadedSessionA.sessionId !==
+      loadedSessionB.sessionId &&
+    loadedSessionA.messages[0]?.content !==
+      loadedSessionB.messages[0]?.content
+
+
+  // =========================
+  // ⑥ 输出测试结果
+  // =========================
+
+  console.log(
+    "\nSession A ID 是否一致：",
+    sessionAIdCorrect,
+  )
+
+  console.log(
+    "Session B ID 是否一致：",
+    sessionBIdCorrect,
+  )
+
+  console.log(
+    "Session A 消息是否一致：",
+    sessionAMessageCorrect,
+  )
+
+  console.log(
+    "Session B 消息是否一致：",
+    sessionBMessageCorrect,
+  )
+
+  console.log(
+    "两个 Session 是否相互独立：",
+    sessionsAreIndependent,
+  )
+
+
+  if (
+    sessionAIdCorrect &&
+    sessionBIdCorrect &&
+    sessionAMessageCorrect &&
+    sessionBMessageCorrect &&
+    sessionsAreIndependent
+  ) {
+    console.log(
+      "\n🎉 Multi Session Persistence 测试通过！",
+    )
   } else {
-    console.log("\n❌ Session Persistence 测试失败")
-
-    console.log("sessionId 是否一致：", sessionIdCorrect)
-    console.log("messages 是否一致：", messagesCorrect)
+    console.log(
+      "\n❌ Multi Session Persistence 测试失败",
+    )
 
     process.exitCode = 1
   }

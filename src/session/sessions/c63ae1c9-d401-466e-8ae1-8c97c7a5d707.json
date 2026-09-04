@@ -1,0 +1,10 @@
+{
+  "sessionId": "c63ae1c9-d401-466e-8ae1-8c97c7a5d707",
+  "messages": [
+    {
+      "role": "user",
+      "content": "这是 Session A 的消息"
+    }
+  ],
+  "createdAt": "2026-09-04T08:53:44.400Z"
+}
