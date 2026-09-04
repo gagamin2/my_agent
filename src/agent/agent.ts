@@ -17,6 +17,7 @@ import { listFilesTool } from "../tools/listFiles.js"
 import { searchFilesTool } from "../tools/searchFiles.js"
 import { toolRegistry } from "../tools/toolRegistry.js"
 import { runCommandTool } from "../tools/runCommand.js"
+import { Skills } from "openai/resources"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -70,7 +71,8 @@ export async function runAgent(userInput: string,session: Session) {
   const analysisSkill = await loadSkill("./src/skills/fileAnalysis.md")
   const debuggingSkill = await loadSkill("./src/skills/debugging.md")
   const testingSkill = await loadSkill("./src/skills/testing.md")
-  // console.log(skill)
+  const gitSkill = await loadSkill("./src/skills/git.md")
+  // console.log(gitSkill)
 
   // 读取长期 Memory
   const memory = await loadMemory()
@@ -85,7 +87,10 @@ ${analysisSkill.content}
 ${debuggingSkill.content}
 
 当前可用 Testing Skill：
-${testingSkill.content}`
+${testingSkill.content}
+
+当前可用 Git Skill：
+${gitSkill.content}`
 
   //用户与模型的对话记录（后面使用同一Session时不重新创建Context）
   if (session.messages.length === 0) {
