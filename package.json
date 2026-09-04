@@ -11,7 +11,8 @@
     "dev": "tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test:security":"tsx src/tests/security-test.ts && tsx src/tests/permission-test.ts && tsx src/tests/workspace-test.ts"
+    "test:security":"tsx src/tests/security-test.ts && tsx src/tests/permission-test.ts && tsx src/tests/workspace-test.ts",
+    "test:session": "tsx src/tests/session-test.ts"
   },
   "repository": {
     "type": "git",

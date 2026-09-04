@@ -5,9 +5,10 @@ import { createSession } from "./session/session.js"
 import { compressContext } from "./context/contextCompressor.js"
 import { createInterface } from "node:readline/promises"
 import { stdin as input, stdout as output } from "node:process"
+import { loadSession, saveSession } from "./session/sessionManager.js"
 
 async function main() {
-  const session = createSession()
+  const session =(await loadSession()) ?? createSession()
   const rl = createInterface({input,output})
   console.log("Agent 已启动，可以开始对话。")
   console.log("输入 exit 退出。")
@@ -18,6 +19,7 @@ async function main() {
       break
     }
     const result = await runAgent(userInput,session,rl)
+    await saveSession(session)//保存会话
     console.log("Agent：")
     console.log(result)
   }
