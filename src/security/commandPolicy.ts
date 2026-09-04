@@ -29,7 +29,7 @@ const confirmPatterns = [
     reason: "git reset --hard 可能丢弃未提交修改并改变 HEAD 状态",
   },
   {
-    pattern: /^git\s+checkout\s+--\b/i,
+    pattern: /^git\s+checkout\s+--(?:\s|$)/i,
     reason: "git checkout -- 可能丢弃文件的未提交修改",
   },
   {

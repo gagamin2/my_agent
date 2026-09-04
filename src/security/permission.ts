@@ -1,5 +1,11 @@
 import type { Interface } from "node:readline/promises"
 
+export function isPermissionGranted(
+  answer: string,
+): boolean {
+  return answer.trim().toLowerCase() === "y"
+}
+
 export async function requestPermission(
   rl: Interface,
   command: string,
@@ -9,6 +15,9 @@ export async function requestPermission(
   console.log(`命令：${command}`)
   console.log(`原因：${reason}`)
 
-  const answer = await rl.question("是否确认执行？[y/N] ",)
-  return answer.trim().toLowerCase() === "y"
+  const answer = await rl.question(
+    "是否确认执行？[y/N] ",
+  )
+
+  return isPermissionGranted(answer)
 }
