@@ -25,11 +25,25 @@ export async function runCommand(
 ) {
   const policyResult = checkCommand(command)
 
-  //危险操作询问用户
-  if (policyResult.risk === "dangerous") {
+  if (policyResult.risk === "blocked") {
+    return {
+      success: false,
+      blocked: true,
+      reason:
+        policyResult.reason ??
+        "该命令被安全策略禁止",
+      stdout: "",
+      stderr: "",
+      exitCode: null,
+    }
+  }
+
+  // 危险操作询问用户
+  if (policyResult.risk === "confirm") {
     const allowed = await requestPermission(
       command,
-      policyResult.reason ?? "该命令存在潜在风险",
+      policyResult.reason ??
+        "该命令存在潜在风险",
     )
 
     if (!allowed) {

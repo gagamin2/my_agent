@@ -2,6 +2,7 @@
 
 ## 项目概况
 - my_agent：基于 TypeScript + DeepSeek API 的终端交互式 AI Agent 学习项目。
+- 项目运行在 Windows 环境（路径如 `D:\my_agent`），执行文件/目录操作时需使用 Windows 命令语法（如 `del` 删除文件、`rd /s /q` 删除目录），`rm` 等 Unix 命令不可用。
 
 ## 关键架构约定
 - 主 Agent Loop 最多 10 轮。
