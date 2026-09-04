@@ -1,11 +1,5 @@
-import {
-  createSession,
-} from "../session/session.js"
-
-import {
-  saveSession,
-  loadSession,
-} from "../session/sessionManager.js"
+import { createSession } from "../session/session.js"
+import {saveSession,loadSession,listSessions} from "../session/sessionManager.js"
 
 async function main() {
   console.log("开始测试 Multi Session Persistence\n")
@@ -28,7 +22,6 @@ async function main() {
 
   console.log("Session A 保存成功")
 
-
   // =========================
   // ② 创建 Session B
   // =========================
@@ -47,7 +40,6 @@ async function main() {
 
   console.log("Session B 保存成功")
 
-
   // =========================
   // ③ 分别加载两个 Session
   // =========================
@@ -62,8 +54,9 @@ async function main() {
       sessionB.sessionId,
     )
 
-  console.log("\n③ 分别加载 Session A 和 Session B")
-
+  console.log(
+    "\n③ 分别加载 Session A 和 Session B",
+  )
 
   // =========================
   // ④ 检查加载结果
@@ -84,7 +77,6 @@ async function main() {
     "Session B:",
     loadedSessionB.sessionId,
   )
-
 
   // =========================
   // ⑤ 检查 Session 是否互相独立
@@ -120,7 +112,6 @@ async function main() {
     loadedSessionA.messages[0]?.content !==
       loadedSessionB.messages[0]?.content
 
-
   // =========================
   // ⑥ 输出测试结果
   // =========================
@@ -150,13 +141,58 @@ async function main() {
     sessionsAreIndependent,
   )
 
+  // =========================
+  // ⑦ 测试 listSessions
+  // =========================
+
+  const sessions =
+    await listSessions()
+
+  console.log(
+    "\n⑦ 获取所有 Session",
+  )
+
+  console.log(
+    "当前 Session 数量：",
+    sessions.length,
+  )
+
+  const sessionAExists =
+    sessions.some(
+      (session) =>
+        session.sessionId ===
+        sessionA.sessionId,
+    )
+
+  const sessionBExists =
+    sessions.some(
+      (session) =>
+        session.sessionId ===
+        sessionB.sessionId,
+    )
+
+  console.log(
+    "Session A 是否存在：",
+    sessionAExists,
+  )
+
+  console.log(
+    "Session B 是否存在：",
+    sessionBExists,
+  )
+
+  // =========================
+  // ⑧ 最终测试结果
+  // =========================
 
   if (
     sessionAIdCorrect &&
     sessionBIdCorrect &&
     sessionAMessageCorrect &&
     sessionBMessageCorrect &&
-    sessionsAreIndependent
+    sessionsAreIndependent &&
+    sessionAExists &&
+    sessionBExists
   ) {
     console.log(
       "\n🎉 Multi Session Persistence 测试通过！",

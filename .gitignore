@@ -7,3 +7,6 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+
+# Session runtime data
+src/session/sessions/

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { mkdir, readFile, writeFile, readdir } from "node:fs/promises"
 import path from "node:path"
 import type { Session } from "./session.js"
 
@@ -60,5 +60,35 @@ export async function loadSession(
     )
 
     return null
+  }
+}
+
+export async function listSessions(): Promise<Session[]> {
+  try {
+    const files = await readdir(sessionsDir)
+
+    const sessionFiles = files.filter(
+      (file) => file.endsWith(".json"),
+    )
+
+    const sessions: Session[] = []
+
+    for (const file of sessionFiles) {
+      const sessionId = file.replace(
+        ".json",
+        "",
+      )
+
+      const session =
+        await loadSession(sessionId)
+
+      if (session) {
+        sessions.push(session)
+      }
+    }
+
+    return sessions
+  } catch (error) {
+    return []
   }
 }

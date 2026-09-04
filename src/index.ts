@@ -5,12 +5,12 @@ import { createSession } from "./session/session.js"
 import { compressContext } from "./context/contextCompressor.js"
 import { createInterface } from "node:readline/promises"
 import { stdin as input, stdout as output } from "node:process"
-import { loadSession, saveSession } from "./session/sessionManager.js"
+import { loadSession, saveSession,listSessions } from "./session/sessionManager.js"
 
 async function main() {
   // const sessionId = createSession().sessionId
   // const session =(await loadSession(sessionId)) ?? createSession()
-  const session = createSession()
+  let session = createSession()
   const rl = createInterface({input,output})
   console.log("Agent 已启动，可以开始对话。")
   console.log("输入 exit 退出。")
@@ -20,12 +20,66 @@ async function main() {
     if (userInput.trim() === "exit") {
       break
     }
+    //创建新会话
+    if (userInput.trim() === "/new") {
+      session = createSession()
+
+      console.log("\n🆕 已创建新的 Session")
+      console.log(`Session ID：${session.sessionId}\n`)
+      continue
+    }
+    //加载历史会话
+    if (userInput.trim() === "/sessions") {
+      const sessions = await listSessions()
+      console.log("\n已有 Session：")
+
+      if (sessions.length === 0) {
+        console.log("暂无 Session")
+        continue
+      }
+
+      sessions.forEach((item, index) => {
+        console.log(`\n${index + 1}. ${item.sessionId}`)
+        console.log(`   创建时间：${item.createdAt.toLocaleString()}`)
+        console.log(`   消息数量：${item.messages.length}`)
+      })
+
+      console.log()
+      continue
+    }
+    //选择会话
+    if (userInput.trim().startsWith("/switch ")) {
+      const sessionId = userInput.trim().slice("/switch ".length).trim()
+
+      if (!sessionId) {
+        console.log("\n用法：/switch <sessionId>\n")
+        continue
+      }
+
+      const loadedSession = await loadSession(sessionId)
+
+      if (!loadedSession) {
+        console.log(`\n❌ 未找到 Session：${sessionId}\n`)
+        continue
+      }
+
+      session = loadedSession
+      console.log(`\n✅ 已切换到 Session：${session.sessionId}`)
+      console.log(`消息数量：${session.messages.length}\n`)
+      continue
+    }
+    if (!userInput.trim()) {
+      continue
+    }
     const result = await runAgent(userInput,session,rl)
     await saveSession(session)//保存会话
     console.log("Agent：")
     console.log(result)
   }
+  
   rl.close()
+
+  
 
 
 
