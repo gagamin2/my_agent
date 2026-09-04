@@ -85,3 +85,5 @@ if (failed === 0) {
   console.log("\n⚠️ 存在测试失败，需要检查 Permission。")
   process.exitCode = 1
 }
+
+//输入 npm run test:security 全部测试

@@ -1,7 +1,9 @@
 import { exec } from "node:child_process"
+// import path from "node:path"
+import type { Interface } from "node:readline/promises"
 import { checkCommand } from "../security/commandPolicy.js"
 import { requestPermission } from "../security/permission.js"
-import type { Interface } from "node:readline/promises"
+import {checkPathInsideWorkspace,extractPathsFromCommand} from "../security/workspace.js"
 
 export const runCommandTool = {
   type: "function" as const,
@@ -25,8 +27,29 @@ export async function runCommand(
   command: string,
   rl: Interface,
 ) {
+  // 第一步：检查命令本身的风险等级
   const policyResult = checkCommand(command)
 
+  // 第二步：检查命令中的路径是否超出工作区
+  const paths = extractPathsFromCommand(command)
+
+  for (const targetPath of paths) {
+    const pathResult =
+      checkPathInsideWorkspace(targetPath)
+
+    if (!pathResult.allowed) {
+      return {
+        success: false,
+        blocked: true,
+        reason: pathResult.reason,
+        stdout: "",
+        stderr: "",
+        exitCode: null,
+      }
+    }
+  }
+
+  // 第三步：禁止执行高风险命令
   if (policyResult.risk === "blocked") {
     return {
       success: false,
@@ -40,7 +63,7 @@ export async function runCommand(
     }
   }
 
-  // 危险操作询问用户
+  // 第四步：高风险操作需要用户确认
   if (policyResult.risk === "confirm") {
     const allowed = await requestPermission(
       rl,
@@ -61,6 +84,7 @@ export async function runCommand(
     }
   }
 
+  // 第五步：执行命令
   return await new Promise<{
     success: boolean
     blocked?: boolean
