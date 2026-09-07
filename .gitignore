@@ -8,5 +8,8 @@ venv/
 __pycache__/
 *.pyc
 
-# Session runtime data
+# 会话历史
 src/session/sessions/
+
+# skill获取历史
+src/community/skillHistory.json

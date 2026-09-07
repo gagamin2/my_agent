@@ -1,16 +1,17 @@
-import {getCommunitySkills} from "../community/communityTool.js"
+import { getCommunitySkills } from "../community/communityTool.js"
 
 async function main() {
   console.log("开始测试 SkillHub Community Tool\n")
 
   try {
-    const skills =
-      await getCommunitySkills({
-        page: 1,
-        pageSize: 20,
-      })
+    const skills = await getCommunitySkills({
+      page: 1,
+      pageSize: 20,
+    })
 
-    console.log(`获取到 ${skills.length} 个社区 Skill\n`,)
+    console.log(
+      `获取并筛选后得到 ${skills.length} 个社区 Skill\n`,
+    )
 
     skills.forEach((skill, index) => {
       console.log(`${index + 1}. ${skill.name}`)
@@ -32,7 +33,6 @@ async function main() {
   } catch (error) {
     console.error("\n❌ SkillHub Community Tool 测试失败")
     console.error(error)
-
     process.exitCode = 1
   }
 }

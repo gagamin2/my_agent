@@ -64,7 +64,7 @@ export async function getCommunitySkills(
     throw new Error(`SkillHub API 返回错误：${data.message}`)
   }
 
-  return data.data.skills
+  return filterCommunitySkills(data.data.skills)
 }
 
 export const getCommunitySkillsTool = {
@@ -88,4 +88,31 @@ export const getCommunitySkillsTool = {
       required: [],
     },
   },
+}
+
+//筛选Skill，并去重
+export function filterCommunitySkills(
+  skills: CommunitySkill[],
+  limit = 10,
+): CommunitySkill[] {
+  const seen = new Set<string>()//保存已经出现过的slug
+
+  return skills
+    .filter((skill) => {
+      if (
+        !skill.slug.trim() ||
+        !skill.name.trim() ||
+        skill.description.trim().length < 10
+      ) {
+        return false
+      }
+
+      if (seen.has(skill.slug)) {
+        return false
+      }
+
+      seen.add(skill.slug)
+      return true
+    })
+    .slice(0, limit)
 }
