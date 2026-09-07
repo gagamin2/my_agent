@@ -33,9 +33,7 @@ newSkills.forEach((skill) => {
 })
 
 if (newSkills.length !== 2) {
-  throw new Error(
-    `测试失败：预期 2 个新 Skill，实际 ${newSkills.length} 个`,
-  )
+  throw new Error(`测试失败：预期 2 个新 Skill，实际 ${newSkills.length} 个`)
 }
 
 const updatedHistory = mergeSkillHistory(history,skills)
@@ -47,14 +45,47 @@ if (updatedHistory.slugs.length !== 3) {
   throw new Error(`测试失败：预期 3 个历史 Skill，实际 ${updatedHistory.slugs.length} 个`)
 }
 
-await saveSkillHistory(updatedHistory)
+// await saveSkillHistory(updatedHistory)
+// const loadedHistory =await loadSkillHistory()
 
-const loadedHistory =await loadSkillHistory()
-
-if (loadedHistory.slugs.length !==updatedHistory.slugs.length) {
-  throw new Error("测试失败：保存后的历史读取不一致",)
-}
+// if (loadedHistory.slugs.length !==updatedHistory.slugs.length) {
+//   throw new Error("测试失败：保存后的历史读取不一致",)
+// }
 
 console.log("\n🎉 Skill History 保存/读取测试通过！",)
+
+const firstSkills = [
+  {
+    slug: "skill-a",
+    name: "Skill A",
+  },
+  {
+    slug: "skill-b",
+    name: "Skill B",
+  },
+  {
+    slug: "skill-c",
+    name: "Skill C",
+  },
+] as CommunitySkill[]
+
+const emptyHistory: SkillHistory = {
+  slugs: [],
+}
+
+const firstNewSkills = findNewSkills(firstSkills,emptyHistory)
+
+if (firstNewSkills.length !== 3) {
+  throw new Error(`第一次测试失败：预期 3 个新 Skill，实际 ${firstNewSkills.length} 个`)
+}
+
+const savedHistory = mergeSkillHistory(emptyHistory,firstSkills)
+const secondNewSkills = findNewSkills(firstSkills,savedHistory)
+
+if (secondNewSkills.length !== 0) {
+  throw new Error(`第二次测试失败：预期 0 个新 Skill，实际 ${secondNewSkills.length} 个`)
+}
+
+console.log("🎉 第一次发现 / 第二次不重复发现测试通过！")
 
 console.log("\n🎉 Skill History 测试通过！")

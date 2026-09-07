@@ -1,3 +1,5 @@
+import {loadSkillHistory,mergeSkillHistory,saveSkillHistory,findNewSkills,} from "./skillHistory.js"
+
 export interface CommunitySkill {
   slug: string
   source: string
@@ -64,7 +66,16 @@ export async function getCommunitySkills(
     throw new Error(`SkillHub API 返回错误：${data.message}`)
   }
 
-  return filterCommunitySkills(data.data.skills)
+  const filteredSkills =
+  filterCommunitySkills(data.data.skills)
+
+  const history = await loadSkillHistory()
+  const newSkills = findNewSkills(filteredSkills, history)
+  const updatedHistory = mergeSkillHistory(history, filteredSkills)
+
+  await saveSkillHistory(updatedHistory)
+
+  return newSkills
 }
 
 export const getCommunitySkillsTool = {
