@@ -21,6 +21,7 @@ import { Skills } from "openai/resources"
 import type { Interface } from "node:readline/promises"
 import { getCommunitySkillsTool } from "../community/communityTool.js"
 import { skillScoringTool } from "../community/skillScoring.js"
+import type { SkillRecommendation } from "../community/skillScoring.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -71,7 +72,11 @@ async function createChatCompletion(
 }
 
 //Agent入口
-export async function runAgent(userInput: string,session: Session,rl: Interface,) {
+export async function runAgent(userInput: string,session: Session,rl: Interface,
+    onSkillRecommendation?: (
+    recommendation: SkillRecommendation,
+  ) => Promise<void> | void,
+) {
   const analysisSkill = await loadSkill("./src/skills/fileAnalysis.md")
   const debuggingSkill = await loadSkill("./src/skills/debugging.md")
   const testingSkill = await loadSkill("./src/skills/testing.md")
@@ -215,6 +220,14 @@ ${communityRecommendationSkill.content}`
       toolCall.function.arguments,
       rl,
     )
+    if (
+      toolCall.function.name === "evaluate_skill" &&
+      onSkillRecommendation
+    ) {
+    await onSkillRecommendation(
+      result as SkillRecommendation,
+    )
+  }
     // console.log("Tool result:")
     // console.log(result)
     }catch(error){
