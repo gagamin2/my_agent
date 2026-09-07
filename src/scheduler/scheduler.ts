@@ -1,13 +1,21 @@
-// 多久执行以及执行什么
+// 定时任务配置
 export interface SchedulerOptions {
   intervalMs: number
   task: () => Promise<void>
 }
 
-export function startScheduler(
+// 定时任务执行器
+export interface Scheduler {
+  start(): void
+  stop(): void
+}
+
+export function createScheduler(
   options: SchedulerOptions,
-): NodeJS.Timeout {
+): Scheduler {
   const { intervalMs, task } = options
+
+  let timer: NodeJS.Timeout | null = null
 
   // 防止上一次任务还没结束时，又启动新的任务
   let isRunning = false
@@ -32,11 +40,35 @@ export function startScheduler(
     }
   }
 
-  // 启动 Scheduler 后立即执行一次
-  void run()
+  const start = () => {
+    // 已经启动则不重复启动
+    if (timer !== null) {
+      console.log("Scheduler 已经启动。")
+      return
+    }
 
-  // 之后按照 intervalMs 定时执行
-  return setInterval(() => {
+    // 启动后立即执行一次
     void run()
-  }, intervalMs)
+
+    // 之后按照 intervalMs 定时执行
+    timer = setInterval(() => {
+      void run()
+    }, intervalMs)
+  }
+
+  const stop = () => {
+    if (timer === null) {
+      return
+    }
+
+    clearInterval(timer)
+    timer = null
+
+    console.log("Scheduler 已停止。")
+  }
+
+  return {
+    start,
+    stop,
+  }
 }
