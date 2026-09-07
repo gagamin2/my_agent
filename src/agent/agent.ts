@@ -75,6 +75,7 @@ export async function runAgent(userInput: string,session: Session,rl: Interface,
   const debuggingSkill = await loadSkill("./src/skills/debugging.md")
   const testingSkill = await loadSkill("./src/skills/testing.md")
   const gitSkill = await loadSkill("./src/skills/git.md")
+  const communityRecommendationSkill =await loadSkill("./src/skills/communityRecommendation.md")
   // console.log(gitSkill)
 
   // 读取长期 Memory
@@ -93,7 +94,10 @@ ${debuggingSkill.content}
 ${testingSkill.content}
 
 当前可用 Git Skill：
-${gitSkill.content}`
+${gitSkill.content}
+
+当前可用 Community Skill Recommendation Skill：
+${communityRecommendationSkill.content}`
 
   //用户与模型的对话记录（后面使用同一Session时不重新创建Context）
   if (session.messages.length === 0) {

@@ -83,7 +83,7 @@ export const getCommunitySkillsTool = {
   function: {
     name: "get_community_skills",
     description:
-      "获取 SkillHub 社区中最近更新的 Skill，用于发现新的社区 Skill。",
+      "获取 SkillHub 社区中最近更新且当前历史中未见过的 Skill。返回结果用于后续分析和推荐，不代表这些 Skill 已经经过质量验证。page 表示 SkillHub 分页页码，不能将 page=2 等结果描述为最新第一页数据。",
     parameters: {
       type: "object",
       properties: {
