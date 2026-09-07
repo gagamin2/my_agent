@@ -78,6 +78,7 @@ export async function getCommunitySkills(
   return newSkills
 }
 
+//获取社区skill工具
 export const getCommunitySkillsTool = {
   type: "function" as const,
   function: {

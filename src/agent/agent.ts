@@ -20,6 +20,7 @@ import { runCommandTool } from "../tools/runCommand.js"
 import { Skills } from "openai/resources"
 import type { Interface } from "node:readline/promises"
 import { getCommunitySkillsTool } from "../community/communityTool.js"
+import { skillScoringTool } from "../community/skillScoring.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -28,7 +29,7 @@ const client = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
 })
 
-const tools = [readFileTool,writeFileTool,listFilesTool, searchFilesTool,runCommandTool,getCommunitySkillsTool]
+const tools = [readFileTool,writeFileTool,listFilesTool, searchFilesTool,runCommandTool,getCommunitySkillsTool,skillScoringTool]
 //工具执行器
 async function executeTool(
   name: string,
