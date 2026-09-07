@@ -1,10 +1,12 @@
 import OpenAI from "openai"
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
 
-const client = new OpenAI({
-  baseURL: "https://api.deepseek.com",
-  apiKey: process.env.DEEPSEEK_API_KEY,
-})
+function createClient() {
+  return new OpenAI({
+    baseURL: "https://api.deepseek.com",
+    apiKey: process.env.DEEPSEEK_API_KEY,
+  })
+}
 
 const MAX_MESSAGES = 10
 const RECENT_MESSAGES = 6
@@ -88,6 +90,7 @@ export async function compressContext(
 
   let response
   try{
+    const client = createClient()
     response = await client.chat.completions.create({
       model: "deepseek-v4-pro",
       messages: [

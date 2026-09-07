@@ -1,4 +1,4 @@
-const TOKEN_BUDGET = 8000
+const TOKEN_BUDGET = 10000
 const NUDGE = 0.8
 // let totalOutput = 0
 
