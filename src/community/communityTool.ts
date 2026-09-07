@@ -66,3 +66,26 @@ export async function getCommunitySkills(
 
   return data.data.skills
 }
+
+export const getCommunitySkillsTool = {
+  type: "function" as const,
+  function: {
+    name: "get_community_skills",
+    description:
+      "获取 SkillHub 社区中最近更新的 Skill，用于发现新的社区 Skill。",
+    parameters: {
+      type: "object",
+      properties: {
+        page: {
+          type: "number",
+          description: "页码，从 1 开始。",
+        },
+        pageSize: {
+          type: "number",
+          description: "每页返回的 Skill 数量，最大 100。",
+        },
+      },
+      required: [],
+    },
+  },
+}

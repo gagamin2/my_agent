@@ -4,6 +4,7 @@ import { executeListFiles } from "./listFiles.js"
 import { searchFiles } from "./searchFiles.js"
 import { runCommand } from "./runCommand.js"
 import type { Interface } from "node:readline/promises"
+import { getCommunitySkills } from "../community/communityTool.js"
 
 export const toolRegistry = {
   read_file: async (args: any) => {
@@ -24,5 +25,9 @@ export const toolRegistry = {
 
   run_command: async (args: any, rl: Interface) => {
     return await runCommand(args.command,rl)
+  },
+  
+  get_community_skills: async (args: any) => {
+    return await getCommunitySkills(args)
   }
 }
