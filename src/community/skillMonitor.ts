@@ -1,11 +1,12 @@
+import "dotenv/config"
 import { createInterface } from "node:readline/promises"
 import { runAgent } from "../agent/agent.js"
 import { createSession } from "../session/session.js"
 import { NotificationManager } from "../notification/notificationManager.js"
 import { ConsoleNotificationChannel } from "../notification/consoleNotificationChannel.js"
+import { WebhookNotificationChannel } from "../notification/webhookNotificationChannel.js"
 import { SkillNotificationService } from "../notification/skillNotificationService.js"
 import { NotificationHistory } from "../notification/notificationHistory.js"
-import { WebhookNotificationChannel } from "../notification/webhookNotificationChannel.js"
 
 export async function runSkillMonitor(): Promise<void> {
   console.log("\n========== SkillHub 自动监控开始 ==========")
@@ -18,30 +19,39 @@ export async function runSkillMonitor(): Promise<void> {
   try {
     const session = createSession()
 
+    // 从环境变量读取 Webhook 地址
+    const webhookUrl = process.env.WEBHOOK_URL
+
+    if (!webhookUrl) {
+      throw new Error("未配置 WEBHOOK_URL 环境变量")
+    }
+
+    // 创建通知管理器
     const notificationManager = new NotificationManager([
       new ConsoleNotificationChannel(),
-      new WebhookNotificationChannel(
-        "https://example.com/webhook",
-      ),
+      new WebhookNotificationChannel(webhookUrl),
     ])
 
-    const notificationHistory =new NotificationHistory()
+    // 创建通知历史
+    const notificationHistory = new NotificationHistory()
 
+    // 创建 Skill 通知服务
     const skillNotificationService =
       new SkillNotificationService(
-      notificationManager,
-      notificationHistory,
-    )
+        notificationManager,
+        notificationHistory,
+      )
 
+    // 启动 Agent
     const result = await runAgent(
       "帮我分析一下 SkillHub 最近有哪些值得关注的新 Skill",
       session,
       rl,
       async (recommendation) => {
         await skillNotificationService.handleRecommendation(
-        recommendation,
-      )
-    },
+          recommendation,
+        )
+      },
     )
 
     console.log("\n========== SkillHub 监控结果 ==========")
