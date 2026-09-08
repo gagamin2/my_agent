@@ -4,6 +4,7 @@ import { createSession } from "../session/session.js"
 import { NotificationManager } from "../notification/notificationManager.js"
 import { ConsoleNotificationChannel } from "../notification/consoleNotificationChannel.js"
 import { createSkillNotification } from "../notification/skillNotification.js"
+import { NotificationHistory } from "../notification/notificationHistory.js"
 
 export async function runSkillMonitor(): Promise<void> {
   console.log("\n========== SkillHub 自动监控开始 ==========")
@@ -20,6 +21,8 @@ export async function runSkillMonitor(): Promise<void> {
       new ConsoleNotificationChannel(),
     ])
 
+    const notificationHistory =new NotificationHistory()
+
     const result = await runAgent(
       "帮我分析一下 SkillHub 最近有哪些值得关注的新 Skill",
       session,
@@ -32,7 +35,17 @@ export async function runSkillMonitor(): Promise<void> {
           return
         }
 
+        if (
+          notificationHistory.hasNotified(
+          recommendation.skillSlug,
+        )
+      ) {
+        console.log(`Skill ${recommendation.skillSlug} 已经通知过，跳过重复通知。`)
+
+      return
+    }
         await notificationManager.send(notification)
+        notificationHistory.markNotified(recommendation.skillSlug)
       },
     )
 
