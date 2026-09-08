@@ -42,40 +42,95 @@ const SKILLHUB_BASE_URL =
 export async function getCommunitySkills(
   options: CommunityToolOptions = {},
 ): Promise<CommunitySkill[]> {
-  const page = options.page ?? 1
+  const startPage = options.page ?? 1
   const pageSize = options.pageSize ?? 20
-
-  //构造Query参数
-  const params = new URLSearchParams({
-    page: String(page),
-    pageSize: String(pageSize),
-    sortBy: "updated_at",
-    order: "desc",
-    source: "community",
-  })
-
-  const response = await fetch(`${SKILLHUB_BASE_URL}/api/skills?${params.toString()}`)
-
-  if (!response.ok) {
-    throw new Error(`SkillHub API 请求失败：${response.status}`)
-  }
-
-  const data = (await response.json()) as SkillHubResponse
-
-  if (data.code !== 0) {
-    throw new Error(`SkillHub API 返回错误：${data.message}`)
-  }
-
-  const filteredSkills =
-  filterCommunitySkills(data.data.skills)
+  const targetCount = 10
 
   const history = await loadSkillHistory()
-  const newSkills = findNewSkills(filteredSkills, history)
-  const updatedHistory = mergeSkillHistory(history, filteredSkills)
 
-  await saveSkillHistory(updatedHistory)
+  const newSkills: CommunitySkill[] = []
+  const collectedSlugs = new Set<string>()
 
-  return newSkills
+  let page = startPage
+  let total = Infinity
+
+  while (newSkills.length < targetCount) {
+    // 构造 Query 参数
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+      sortBy: "updated_at",
+      order: "desc",
+      source: "community",
+    })
+
+    console.log(`正在获取 SkillHub 第 ${page} 页...`)
+
+    const response = await fetch(
+      `${SKILLHUB_BASE_URL}/api/skills?${params.toString()}`,
+    )
+
+    if (!response.ok) {
+      throw new Error(`SkillHub API 请求失败：${response.status}`)
+    }
+
+    const data = (await response.json()) as SkillHubResponse
+
+    if (data.code !== 0) {
+      throw new Error(`SkillHub API 返回错误：${data.message}`)
+    }
+
+    total = data.data.total
+
+    // 对当前页进行基础筛选和去重
+    const filteredSkills = filterCommunitySkills(
+      data.data.skills,
+      pageSize,
+    )
+
+    // 当前页中找出历史里没有出现过的 Skill
+    const currentNewSkills = findNewSkills(
+      filteredSkills,
+      history,
+    )
+
+    // 避免不同页面之间出现重复 Skill
+    for (const skill of currentNewSkills) {
+      if (collectedSlugs.has(skill.slug)) {
+        continue
+      }
+
+      collectedSlugs.add(skill.slug)
+      newSkills.push(skill)
+
+      if (newSkills.length >= targetCount) {
+        break
+      }
+    }
+
+    // 记录当前页已经见过的 Skill
+    const updatedHistory = mergeSkillHistory(
+      history,
+      filteredSkills,
+    )
+
+    history.slugs = updatedHistory.slugs
+
+    // 已经找到足够的 Skill
+    if (newSkills.length >= targetCount) {
+      break
+    }
+    // 当前页是最后一页
+    if (page * pageSize >= total) {
+      break
+    }
+    page++
+  }
+
+  // 保存更新后的 Skill 历史
+  await saveSkillHistory(history)
+  console.log(`本次共筛选出 ${newSkills.length} 个新的 Skill`)
+  return newSkills.slice(0, targetCount)
 }
 
 //获取社区skill工具
