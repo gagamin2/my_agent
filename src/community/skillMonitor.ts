@@ -4,9 +4,10 @@ import { runAgent } from "../agent/agent.js"
 import { createSession } from "../session/session.js"
 import { NotificationManager } from "../notification/notificationManager.js"
 import { ConsoleNotificationChannel } from "../notification/consoleNotificationChannel.js"
-import { WebhookNotificationChannel } from "../notification/webhookNotificationChannel.js"
+// import { WebhookNotificationChannel } from "../notification/webhookNotificationChannel.js"
 import { SkillNotificationService } from "../notification/skillNotificationService.js"
 import { NotificationHistory } from "../notification/notificationHistory.js"
+import { DingTalkNotificationChannel } from "../notification/dingTalkNotificationChannel.js"
 
 export async function runSkillMonitor(): Promise<void> {
   console.log("\n========== SkillHub 自动监控开始 ==========")
@@ -29,7 +30,7 @@ export async function runSkillMonitor(): Promise<void> {
     // 创建通知管理器
     const notificationManager = new NotificationManager([
       new ConsoleNotificationChannel(),
-      new WebhookNotificationChannel(webhookUrl),
+      new DingTalkNotificationChannel(webhookUrl),
     ])
 
     // 创建通知历史

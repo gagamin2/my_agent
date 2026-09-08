@@ -6,12 +6,36 @@ import { compressContext } from "./context/contextCompressor.js"
 import { createInterface } from "node:readline/promises"
 import { stdin as input, stdout as output } from "node:process"
 import { loadSession, saveSession,listSessions } from "./session/sessionManager.js"
+import { NotificationManager } from "./notification/notificationManager.js"
+import { ConsoleNotificationChannel } from "./notification/consoleNotificationChannel.js"
+import { DingTalkNotificationChannel } from "./notification/dingTalkNotificationChannel.js"
+import { SkillNotificationService } from "./notification/skillNotificationService.js"
+import { NotificationHistory } from "./notification/notificationHistory.js"
 
 async function main() {
   // const sessionId = createSession().sessionId
   // const session =(await loadSession(sessionId)) ?? createSession()
   let session = createSession()
   const rl = createInterface({input,output})
+  const webhookUrl = process.env.WEBHOOK_URL
+
+  if (!webhookUrl) {
+    throw new Error("未配置 WEBHOOK_URL 环境变量")
+  }
+
+  const notificationManager = new NotificationManager([
+    new ConsoleNotificationChannel(),
+    new DingTalkNotificationChannel(webhookUrl),
+  ])
+
+  const notificationHistory = new NotificationHistory()
+
+  const skillNotificationService =
+    new SkillNotificationService(
+      notificationManager,
+      notificationHistory,
+    )
+
   console.log("Agent 已启动，可以开始对话。")
   console.log("输入 exit 退出。")
 
@@ -71,7 +95,13 @@ async function main() {
     if (!userInput.trim()) {
       continue
     }
-    const result = await runAgent(userInput,session,rl)
+    const result = await runAgent(userInput,session,rl,
+      async (recommendation) => {
+        await skillNotificationService.handleRecommendation(
+        recommendation,
+      )
+  },
+    )
     await saveSession(session)//保存会话
     console.log("Agent：")
     console.log(result)
