@@ -1,57 +1,254 @@
 # TypeScript Agent
 
-基于 **TypeScript + DeepSeek API** 的终端交互式 Agent 学习项目。实现了 Agent Loop、Tool Calling、Session 会话、上下文压缩、长期 Memory（由 Memory Agent 自动维护），并内置多层安全机制防止异常执行。
+基于 **TypeScript + Node.js + OpenAI SDK** 构建的终端交互式 Agent 项目，底层调用 **DeepSeek API**。
 
-## 总览
+这不是一个简单的聊天机器人，而是一个逐步完善的 Agent 系统：具备 Agent Loop、工具调用、上下文管理与压缩、长期记忆、会话管理、命令安全控制、Skill 系统，以及社区 Skill 发现、评分、推荐通知与定时监控能力。
 
-这是一个运行在终端里的文件操作 Agent：你通过自然语言下达任务，它自主决定需要读取还是写入哪些文件，并在多轮对话中保持上下文。
+## 项目特点
 
-主要能力：
+- **完整的 Agent Loop** — 接收任务后自主循环：调用模型 → 决定工具 → 执行工具 → 回填结果，直到任务完成
+- **多层安全保险丝** — 最大轮数、Token 预算、死循环检测、截断恢复，防止 Agent 失控
+- **命令级安全控制** — 命令风险分级、用户确认、工作区边界检查，限制 Agent 的破坏能力
+- **长期记忆** — Memory Agent 在任务结束后自动判断并保存值得长期记住的信息
+- **多会话管理** — Session 持久化到文件，支持新建、切换、列出会话
+- **Skill 体系** — 内置多个 Skill，并接入 SkillHub 社区，自动发现、评分、推荐新 Skill
+- **多渠道通知** — 强烈推荐的 Skill 通过 Console、Webhook、钉钉机器人等渠道推送，带历史去重
+- **定时监控** — 内置 Scheduler，可定时执行 SkillHub 监控任务
 
-- **文件读写** — 通过 read_file / write_file 工具读取、分析、修改本地文件
-- **连续对话** — 同一会话内多轮输入共享上下文，可以直接追问「刚才那个文件里有什么」
-- **长期记忆** — 任务结束后 Memory Agent 自动判断哪些信息值得长期保存，下次对话自动带上
-- **自我约束** — Token 预算、重复调用检测、截断恢复等机制防止 Agent 失控
+## 技术栈
 
-一个典型用法：
-
-```text
-你：读取 src/index.ts，告诉我这个项目是做什么的
-Agent：...（调用 read_file 后给出分析）
-
-你：把分析结果写进 tests/text.txt
-Agent：...（调用 write_file 完成写入）
-```
+- TypeScript（strict + nodenext + verbatimModuleSyntax）
+- Node.js（`node:fs/promises`、`node:readline/promises`、`node:crypto` 等内置模块）
+- OpenAI SDK（`openai` v7，兼容 DeepSeek API）
+- DeepSeek API（模型 `deepseek-v4-pro`）
+- `dotenv`（环境变量加载）、`tsx`（开发运行/测试运行器）
+- 文件系统持久化（Memory、Session、Skill 历史、通知历史均为本地 JSON / Markdown 文件）
 
 ## 快速开始
+
+### 环境变量
+
+在项目根目录创建 `.env`（已加入 .gitignore，项目未提供 .env.example）：
+
+| 变量 | 必填 | 说明 |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | 是 | DeepSeek API Key |
+| `WEBHOOK_URL` | 是（启动时校验） | 钉钉机器人 Webhook 地址 |
+
+### 安装依赖
 
 ```bash
 npm install
 ```
 
-在项目根目录创建 `.env`（已加入 .gitignore）：
+### 启动
 
-```env
-DEEPSEEK_API_KEY=你的Key
-```
-
-启动：
+项目有两个入口，对应两种运行模式：
 
 ```bash
+# 入口一：对话模式 —— 启动终端交互式 Agent
 npm run dev
+
+# 入口二：定时探索模式 —— 每小时自动探索 SkillHub 社区新 Skill 并推送推荐
+npm run monitor
 ```
 
-终端中直接输入即可与 Agent 对话，输入 `exit` 退出。
+也可以构建后运行编译产物（仅对话模式）：
 
-## 项目结构
+```bash
+npm run build
+npm start
+```
+
+对话模式启动后会进入终端对话循环。普通输入发给 Agent，Agent 在终端打印执行轮次；`run_command` 等工具触发权限确认时按 `y/N` 应答。定时探索模式的执行流程见下文「定时监控」。
+
+### CLI 命令
+
+| 命令 | 说明 |
+|---|---|
+| `exit` | 退出程序 |
+| `/new` | 创建新的 Session |
+| `/sessions` | 列出所有已保存的 Session（序号、ID、创建时间、消息数） |
+| `/switch <sessionId>` | 切换到指定 Session |
+
+### 使用示例
+
+```text
+你：读取 src/index.ts，告诉我这个文件做了什么
+Agent 第 1 轮：
+Agent：
+（read_file 结果分析……）
+
+你：用 git status 看一下当前仓库状态
+（run_command 触发权限确认）
+是否确认执行？[y/N] y
+```
+
+## 整体架构与工作流程
+
+### 主对话流程
+
+```mermaid
+flowchart TD
+    A[终端输入] --> B{CLI 命令?}
+    B -->|/new /sessions /switch| C[Session 管理]
+    B -->|普通输入| D[runAgent]
+    D --> E[组装上下文<br/>System Prompt + 5 个 Skill + Memory + 用户输入]
+    E --> F{Agent Loop<br/>最多 10 轮}
+    F --> G[压缩上下文]
+    G --> H[调用 DeepSeek 模型<br/>失败自动重试 3 次]
+    H --> I{输出被截断?}
+    I -->|是| J[截断恢复<br/>最多 3 次]
+    J --> H
+    I -->|否| K{Token 预算检查}
+    K -->|超预算| L[停止并返回提示]
+    K -->|正常| M{有 Tool Call?}
+    M -->|否| N[Memory Agent 维护长期记忆]
+    N --> O[输出最终结果]
+    M -->|是| P[循环检测 + 执行工具<br/>经 Tool Registry 分发]
+    P --> Q[Tool Result 回填上下文]
+    Q --> F
+```
+
+### 社区 Skill 监控流程
+
+```mermaid
+flowchart TD
+    A[Scheduler 每小时触发] --> B[runSkillMonitor]
+    B --> C[runAgent 分析 SkillHub 新 Skill]
+    C --> D[get_community_skills<br/>分页获取 + 过滤 + 历史比对]
+    D --> E[evaluate_skill<br/>五维评分]
+    E --> F{推荐等级}
+    F -->|strongly_recommended| G[Notification Policy 校验]
+    F -->|其他等级| H[忽略]
+    G --> I{通知历史去重}
+    I -->|未通知过| J[Console + 钉钉机器人]
+    I -->|已通知| H
+```
+
+## 核心模块
+
+### Agent 核心（`src/agent/`）
+
+`runAgent()` 是调度中心，核心常量：最大执行轮数 `MAX_TURNS = 10`，模型调用失败自动重试 `MAX_RETRIES = 3` 次（间隔 2 秒）。
+
+每轮循环依次执行：压缩上下文 → 调用模型 → 截断检查 → Token 预算检查 → 若模型返回 Tool Call 则逐个执行并回填结果，若返回纯文本则视为最终答案。循环警告和 Token 警告会以 system 消息注入上下文，提示模型自我纠正；触发硬限制时直接终止并返回说明。
+
+### 工具系统（`src/tools/`）
+
+所有工具通过 `toolRegistry`（名称 → 处理函数的映射）统一注册，工具声明采用 OpenAI function calling schema 格式，由 `executeTool()` 按名称分发执行。工具异常不会中断主流程，而是包装为 `{ success: false, error }` 回传给模型。
+
+| 工具名 | 实现文件 | 功能 |
+|---|---|---|
+| `read_file` | `tools/readFile.ts` | 读取指定文件内容 |
+| `write_file` | `tools/writeFile.ts` | 向指定文件写入内容 |
+| `list_files` | `tools/listFiles.ts` | 列出目录内容（目录名带 `/` 后缀） |
+| `search_files` | `tools/searchFiles.ts` | 递归搜索目录中内容包含关键词的文件行 |
+| `run_command` | `tools/runCommand.ts` | 执行命令（30 秒超时，须通过安全链路） |
+| `get_community_skills` | `community/communityTool.ts` | 从 SkillHub 社区获取新 Skill |
+| `evaluate_skill` | `community/skillScoring.ts` | 对社区 Skill 五维评分并给出推荐等级 |
+
+### 命令安全控制（`src/security/`）
+
+`run_command` 不会直接执行任意命令，而是经过三层检查：
+
+1. **Command Policy**（`commandPolicy.ts`）— 按 `&&`、`;`、`|` 拆分命令链逐段评估，输出三级风险：
+   - `safe`：直接执行
+   - `confirm`：需用户确认（`git restore/clean/reset --hard/checkout --/rebase`、`push --force`、`rm/del/rmdir/mv/move`、输出重定向 `>`/`>>` 等）
+   - `blocked`：直接拒绝（如 `format`）
+2. **Workspace**（`workspace.ts`）— 工作区边界为进程当前目录；从命令中提取文件路径，任何越界路径都会使命令被拒绝
+3. **Permission**（`permission.ts`）— `confirm` 级命令在终端弹出「是否确认执行？[y/N]」交互确认，拒绝则不执行
+
+### Safety 保险丝（`src/safety/`）
+
+| 模块 | 机制 | 触发条件 |
+|---|---|---|
+| 最大轮数（agent.ts） | 超出直接停止 | 单次任务执行满 10 轮 |
+| Loop Detector | 「工具名 + 参数」生成指纹 | 同一调用第 2 次注入警告，第 3 次停止 |
+| Token Budget | 预算 10000 tokens | 达 80% 提醒模型收尾，超预算停止 |
+| Truncation Recovery | 注入提示后重新请求 | `finish_reason === "length"`，最多恢复 3 次 |
+
+### Context 上下文管理（`src/context/`）
+
+- `context.ts` — `createContext()` 创建初始上下文（System Prompt + Memory + 用户输入），`addMessage()` 追加消息
+- `contextCompressor.ts` — 消息超过 10 条时压缩：旧消息交给模型生成摘要，保留最近 6 条。压缩前剥离 `reasoning_content` 字段，并保证 tool 消息不脱离对应的 `assistant.tool_calls`；压缩失败或结果包含非法 Tool 消息时回退原始上下文
+
+注意：压缩只影响发送给模型的上下文，不会删除 Session 中的历史记录。
+
+### Memory 长期记忆（`src/memory/`）
+
+- `memoryManager.ts` — 基于 `src/memory/memory.md` 的 `loadMemory()` / `saveMemory()`
+- `memoryAgent.ts` — 独立的 Memory Agent（最多 5 轮）。主 Agent 返回最终答案后，把任务、结果、当前 Memory、记忆管理 Skill 一起交给它，由它判断是否值得更新长期记忆，遵循「宁缺毋滥」原则
+- `memoryTool.ts` — `write_memory` 工具的定义与执行
+
+### Prompt 管理（`src/prompt/`）
+
+- `systemPrompt.ts` — 系统提示词（Agent 身份、工具使用规则、Memory 参考原则）及循环警告、Token 警告文案
+- `promptManager.ts` — 统一的 Prompt 获取接口，行为规则与核心代码分离
+
+### Session 会话管理（`src/session/`）
+
+- `session.ts` — `Session { sessionId, messages, createdAt }`，id 由 `randomUUID()` 生成
+- `sessionManager.ts` — 保存/加载/列出会话，持久化到 `src/session/sessions/<sessionId>.json`（已加入 .gitignore）
+
+### Skills 技能系统（`src/skills/`）
+
+Skill 用 Markdown 描述某类任务的工作方法，主 Agent 启动时通过 `loadSkill()` 加载并注入 System Prompt，与「Agent 是谁」解耦。
+
+| Skill | 用途 |
+|---|---|
+| `fileAnalysis.md` | 代码分析流程规范 |
+| `memoryManagement.md` | 长期记忆维护规范（Memory Agent 使用） |
+| `debugging.md` | 调试流程规范 |
+| `testing.md` | 测试规范 |
+| `git.md` | Git 操作风险分级与确认流程 |
+| `communityRecommendation.md` | 社区 Skill 推荐分析流程 |
+
+### SkillHub 社区 Skill 发现（`src/community/`）
+
+- `communityTool.ts` — 通过 `GET https://api.skillhub.cn/api/skills` 分页获取社区 Skill（`pageSize` 默认 20、最多 100），每页按 slug 去重、过滤无效数据，跨页累计直到取满 10 个新 Skill 或列表耗尽。Skill 元数据包括：slug、name、description、description_zh、category、version、homepage、tags、downloads、stars 等
+- `skillHistory.ts` — 已获取 Skill 的 slug 持久化到 `src/community/skillHistory.json`，只处理历史中未出现过的新 Skill
+
+### Skill 评分与推荐（`src/community/skillScoring.ts`）
+
+对每个社区 Skill 由模型进行五维评分（每维 0-10 分）：**实用性、通用性、社区热度、新颖性、安全性**。总分 = 五维直接求和，无权重。推荐等级判定：
+
+| 等级 | 条件 |
+|---|---|
+| `strongly_recommended` | 总分 ≥ 39 且安全分 > 2 |
+| `worth_watching` | 26 ≤ 总分 < 39 且安全分 > 2 |
+| `not_recommended` | 其余情况 |
+
+安全性有兜底机制：**安全分 ≤ 2 时一票否决**，即使总分再高也不推荐。
+
+### 通知系统（`src/notification/`）
+
+采用 Channel 抽象，`NotificationChannel` 接口只定义 `send(notification)`，`NotificationManager` 统一管理多个渠道并逐个广播，单渠道失败不影响其他渠道。
+
+| 渠道 | 实现 | 说明 |
+|---|---|---|
+| Console | `consoleNotificationChannel.ts` | 终端格式化打印 |
+| Webhook | `webhookNotificationChannel.ts` | POST JSON，默认 5 秒超时（AbortController），非 2xx 抛错。已实现并通过本地 mock 测试，当前入口未默认启用 |
+| 钉钉机器人 | `dingTalkNotificationChannel.ts` | text 消息格式，校验 `errcode`，默认 5 秒超时。当前与 Console 一起默认启用 |
+
+Skill 通知（`skillNotification.ts` + `skillNotificationService.ts`）：
+
+- 仅 `strongly_recommended` 等级触发（`notificationPolicy.ts`）
+- 通知内容包含：Skill 名称、slug、简介（`description_zh` 优先，无中文时用 `description`）、分类、版本、推荐总分、推荐等级、五维评分、主页
+- 去重（`notificationHistory.ts`）：按 skillSlug 记录已通知历史，持久化到 `src/notification/notificationHistory.json`，同一 Skill 不重复推送
+
+### 定时监控（`src/scheduler/`）
+
+- `scheduler.ts` — 通用调度器：`createScheduler({ intervalMs, task })` 返回 `{ start, stop }`；启动后立即执行一次，之后按间隔循环；带 `isRunning` 防并发机制（上一任务未结束时跳过本次）
+- `monitorScheduler.ts` — 每 **60 分钟**执行一次 `runSkillMonitor`；监听 SIGINT 优雅退出。通过 `npm run monitor` 启动（对应 `tsx src/scheduler/monitorScheduler.ts`）
+
+## 项目目录结构
 
 ```text
 src/
-├── index.ts                  # 程序入口：终端交互
+├── index.ts                  # 程序入口：终端交互 + 通知服务装配
 ├── agent/
 │   └── agent.ts              # 主 Agent：Agent Loop 调度中心
-├── session/
-│   └── session.ts            # Session 会话管理
 ├── context/
 │   ├── context.ts            # 上下文创建与消息追加
 │   └── contextCompressor.ts  # 上下文压缩
@@ -67,77 +264,85 @@ src/
 │   ├── loopDetector.ts       # 重复调用检测
 │   ├── tokenBudget.ts        # Token 预算控制
 │   └── truncationRecovery.ts # 输出截断恢复
+├── security/
+│   ├── commandPolicy.ts      # 命令风险分级
+│   ├── permission.ts         # 用户确认交互
+│   └── workspace.ts          # 工作区边界检查
+├── session/
+│   ├── session.ts            # Session 定义与创建
+│   ├── sessionManager.ts     # 持久化与管理
+│   └── sessions/             # 会话数据（gitignore）
 ├── skills/
-│   ├── fileAnalysis.md       # 文件分析 Skill
+│   ├── fileAnalysis.md       # 代码分析 Skill
 │   ├── memoryManagement.md   # 记忆管理 Skill
+│   ├── debugging.md          # 调试 Skill
+│   ├── testing.md            # 测试 Skill
+│   ├── git.md                # Git 操作 Skill
+│   ├── communityRecommendation.md  # 社区推荐分析 Skill
 │   └── loadSkill.ts          # Skill 加载
-└── tools/
-    ├── readFile.ts           # read_file 工具
-    └── writeFile.ts          # write_file 工具
+├── tools/
+│   ├── toolRegistry.ts       # 工具统一注册
+│   ├── readFile.ts           # read_file 工具
+│   ├── writeFile.ts          # write_file 工具
+│   ├── listFiles.ts          # list_files 工具
+│   ├── searchFiles.ts        # search_files 工具
+│   └── runCommand.ts         # run_command 工具
+├── community/
+│   ├── communityTool.ts      # SkillHub 查询工具
+│   ├── skillHistory.ts       # 已获取 Skill 历史（gitignore）
+│   ├── skillMonitor.ts       # SkillHub 监控任务
+│   └── skillScoring.ts       # Skill 评分与推荐
+├── scheduler/
+│   ├── scheduler.ts          # 通用定时器
+│   └── monitorScheduler.ts   # 监控任务调度入口
+├── notification/
+│   ├── notification.ts           # 通知数据结构
+│   ├── notificationChannel.ts    # Channel 抽象接口
+│   ├── notificationManager.ts    # 多渠道管理
+│   ├── consoleNotificationChannel.ts     # Console 渠道
+│   ├── webhookNotificationChannel.ts     # Webhook 渠道
+│   ├── dingTalkNotificationChannel.ts    # 钉钉渠道
+│   ├── skillNotification.ts      # Skill 通知构建
+│   ├── skillNotificationService.ts       # Skill 通知服务
+│   ├── notificationPolicy.ts     # 通知策略
+│   └── notificationHistory.ts    # 通知去重历史（gitignore）
+└── tests/                    # 测试脚本（25 个）
 ```
 
-## 模块说明
+## 测试方式
 
-### Agent
+项目没有引入测试框架（无 jest/vitest），测试是**用 tsx 直接运行的独立脚本**：脚本内部用 `throw` 或输出 `✓/✅` 判定，失败时设置 `process.exitCode = 1`。
 
-- **agent/agent.ts** — 主 Agent 调度中心。核心是 `runAgent()`：先组装 System Prompt + Skill + Memory 作为初始上下文（同一 Session 内只创建一次），然后进入最多 10 轮的 Agent Loop——每轮调用模型（失败自动重试 3 次，间隔 2 秒），若模型返回 Tool Call 则逐个执行并把结果以 `role: "tool"` 消息回填，若返回纯文本则视为最终答案。每轮还会依次检查截断恢复、Token 预算、循环检测，超限时提前终止。工具执行有 try/catch 保护，工具抛错不会中断主流程，而是把错误作为 Tool Result 回传给模型。
-- **session/session.ts** — 会话状态（sessionId、messages、createdAt），同一 Session 内多轮对话共享上下文。
+```bash
+# package.json 未提供聚合的 test 脚本，所有测试均逐个运行，例如：
+npx tsx src/tests/security-test.ts
+npx tsx src/tests/session-test.ts
+npx tsx src/tests/skillScoring-test.ts
+npx tsx src/tests/notificationDedup-test.ts
+```
 
-### Context
+`src/tests/` 下共 25 个测试脚本，覆盖：Agent/Tool、命令安全、权限确认、工作区边界、Session、社区 Skill、Skill 历史、Skill 评分、Scheduler、监控任务、通知管理、多渠道、通知去重、通知策略、通知服务、Webhook（含超时/异常场景）等。
 
-- **context/context.ts** — `createContext()` 创建初始上下文（System Prompt + Memory + 用户输入），`addMessage()` 向会话追加消息。
-- **context/contextCompressor.ts** — 消息超过 10 条时压缩：旧消息交给模型生成中文摘要，保留最近 6 条。压缩前会剥离 reasoning_content 字段，并保证 tool 消息不脱离对应的 assistant.tool_calls；压缩失败或结果包含非法 Tool 消息时回退原始上下文。
+注意：部分测试需要真实外部服务——`community-test`、`skillMonitor-test`、`monitorScheduler-test` 需要访问 SkillHub API；`dingtalkNotification-test`、`webhookReal-test` 需要真实 Webhook；Webhook 渠道的 mock 测试（error/timeout/正常）只在本机 localhost 端口启动临时服务器，不访问外网。
 
-### Memory
+## 开发历程
 
-- **memory/memoryManager.ts** — 基于 `src/memory/memory.md` 的 `loadMemory()` / `saveMemory()`。
-- **memory/memoryAgent.ts** — 独立的 Memory Agent（最多 5 轮）。主 Agent 完成任务后，把任务、执行结果、当前 Memory、记忆管理 Skill 一起交给它，由它判断结果中是否有值得长期保存的信息，并调用 write_memory 工具更新 Memory，遵循「宁缺毋滥」原则。
-- **memory/memoryTool.ts** — `write_memory` 工具的定义与执行，整体重写 Memory 文件。
+- **2026-08-28 ~ 08-31** — 项目起步：初始化并接入 DeepSeek，实现 `read_file` 工具与 Tool Result 回传，终端可对话。
+- **2026-09-01 ~ 09-02** — 核心架构成型：Agent Loop（while + 多 ToolCall + 最大轮数）、四道保险丝（轮数/死循环检测/Token 预算/截断恢复）、Prompt 管理、Skill 加载、Memory 模块与 Memory Agent、Session 雏形、上下文压缩接入主流程。
+- **2026-09-03** — 工具与 Skill 扩展：`toolRegistry` 统一注册，新增 `list_files`、`search_files`、`run_command` 工具与 Debugging/Testing Skill，优化 Memory 保存策略。
+- **2026-09-04** — 安全与会话：命令三级风险策略、权限确认、工作区边界检查与安全测试；Session 持久化与多会话管理（`/new`、`/sessions`、`/switch`）；新增 Git Skill。
+- **2026-09-07** — 社区 Skill 体系：SkillHub 查询工具、筛选与历史持久化、只处理新 Skill、五维评分与推荐规则、定时监控（Scheduler 防并发与生命周期控制）、通知基础架构。
+- **2026-09-08** — 通知系统完善：多渠道架构（Console/Webhook/钉钉）、通知去重与历史持久化、钉钉机器人接入、真实 Webhook 联调、评分阈值调整、多页筛选优化、推送内容增加 Skill 简介。
 
-### Prompt & Skill
+## 未来规划
 
-- **prompt/systemPrompt.ts** — 系统提示词 + 循环警告 + Token 警告文案。系统提示词定义 Agent 身份、工具使用规则，以及 Memory 参考原则（Memory 不一定正确，与当前事实冲突时以当前事实为准）。
-- **prompt/promptManager.ts** — 统一的 Prompt 获取接口，其他模块不直接操作 Prompt 文本。
-- **skills/** — Skill 用 Markdown 描述某类任务的工作方法（fileAnalysis.md、memoryManagement.md），主 Agent 启动时通过 loadSkill 加载并注入 System Prompt，与「Agent 是谁」解耦。
+以下方向尚未实现，仅作规划：
 
-### Tools
-
-- **tools/readFile.ts / writeFile.ts** — `read_file` / `write_file` 工具实现。统一返回 `{ success, ... }` 结果对象，失败不抛异常，由 Agent 根据结果决定下一步。
-
-### Safety
-
-- **safety/loopDetector.ts** — 以「工具名 + 参数」生成指纹，同一指纹重复调用第 2 次发警告、第 3 次直接终止。
-- **safety/tokenBudget.ts** — 8000 tokens 预算，消耗到 80% 时注入提醒让模型收尾，超预算停止。
-- **safety/truncationRecovery.ts** — `finish_reason === "length"` 时注入提示重新请求，最多恢复 3 次，超限放弃。
-
-## 历史版本记录
-
-### 2026-09-03 — 打磨与收尾
-
-- 上下文压缩经过三轮优化（`57da050`、`b8cbc63`、`ce15ce0`）：完善 tool 消息保留逻辑、剥离 reasoning_content、压缩失败自动回退，并清除了调试日志。
-- 增加 Tool 异常保护（`88a9d3e`）：工具执行异常不再中断 Agent 流程，错误作为 Tool Result 回传给模型。
-- 优化记忆管理（`ce15ce0`）：精简 Memory 文件内容，完善记忆管理 Skill。
-
-### 2026-09-02 — 上下文压缩、Session、Memory Agent
-
-- 新增终端交互输出（`0619c6c`）：index.ts 用 readline 实现循环对话，输入 exit 退出。
-- 新增 Session（`4b0544b`）：多轮对话共享上下文。
-- 上下文压缩从初步实现（`44f81f6`）到接入主 Agent 流程（`be5dfb9`）。
-- Memory 从零搭起：独立上下文管理（`ca99b08`）→ Memory 模块（`1c40f5b`）→ 写入功能（`536f68f`）→ Memory Agent 自动更新长期记忆（`20a40a7`）→ Memory Tool 并统一消息管理（`c8e4419`）。
-- 提取 Agent Skill，增加 API 失败重试机制（`f408a14`）。
-
-### 2026-09-01 — Agent Loop 成型与安全机制
-
-- 增加 while 循环（`e904ce9`）与多 ToolCall 处理（`ba51867`），Agent Loop 基本成型。
-- 增加四道保险丝：最大循环轮数（`a2170db`）、死循环检测（`9d0fe49`）、Token 预算（`57aa1e2`）、截断恢复（`1e13b28`）。
-- 安全状态从全局改为局部管理（`317c593`）。
-- 增加 write_file 工具（`b06ded4`）、提示词管理（`57ddcf0`）、Skill 加载与注入（`c18a96d`）。
-
-### 2026-08-31 — Tool Calling 起步
-
-- 初始化 Agent 并接入 DeepSeek 模型（`666e5d1`）。
-- 增加 read_file 工具（`23b4be3`），完成 Tool Result 回传与二次调用（`3973cbe`），Agent 能读取并说明文件内容。
-
-### 2026-08-28
-
-- 项目初始化（`2527d04`）。
+- 钉钉通知加签与 @ 成员提醒
+- Webhook 渠道接入默认通知链路
+- 通知渠道扩展（邮件、Telegram 等）
+- Skill 评分规则提示词外置与可配置化
+- 社区 Skill 本地化存储与检索
+- Memory 向量化检索（RAG）
+- 上下文压缩策略进一步智能化
+- Web UI / 多 Agent 协作
