@@ -1,19 +1,29 @@
-# TypeScript Agent
+# SkillExplorer
 
-基于 **TypeScript + Node.js + OpenAI SDK** 构建的终端交互式 Agent 项目，底层调用 **DeepSeek API**。
+SkillExplorer 是一个基于 **TypeScript + Node.js + OpenAI SDK** 构建的 Agent 项目，底层调用 **DeepSeek API**。
 
-这不是一个简单的聊天机器人，而是一个逐步完善的 Agent 系统：具备 Agent Loop、工具调用、上下文管理与压缩、长期记忆、会话管理、命令安全控制、Skill 系统，以及社区 Skill 发现、评分、推荐通知与定时监控能力。
+它有两种运行模式：对话模式下，它是一个可以读写文件、分析代码、执行命令的终端助手；定时探索模式下，它化身 SkillHub 社区探索器，自动发现新 Skill、评分并推送推荐。底层具备完整的 Agent Loop、工具调用、上下文管理与压缩、长期记忆、会话管理、命令安全控制与多渠道通知能力。
 
-## 项目特点
+## 主要功能
 
-- **完整的 Agent Loop** — 接收任务后自主循环：调用模型 → 决定工具 → 执行工具 → 回填结果，直到任务完成
-- **多层安全保险丝** — 最大轮数、Token 预算、死循环检测、截断恢复，防止 Agent 失控
-- **命令级安全控制** — 命令风险分级、用户确认、工作区边界检查，限制 Agent 的破坏能力
-- **长期记忆** — Memory Agent 在任务结束后自动判断并保存值得长期记住的信息
-- **多会话管理** — Session 持久化到文件，支持新建、切换、列出会话
-- **Skill 体系** — 内置多个 Skill，并接入 SkillHub 社区，自动发现、评分、推荐新 Skill
-- **多渠道通知** — 强烈推荐的 Skill 通过 Console、Webhook、钉钉机器人等渠道推送，带历史去重
-- **定时监控** — 内置 Scheduler，可定时执行 SkillHub 监控任务
+### SkillHub 社区 Skill 探索与推荐（核心功能）
+
+- **社区 Skill 发现** — 通过 SkillHub API 分页拉取社区 Skill，按 slug 去重、过滤无效数据，只处理历史中未出现过的新 Skill
+- **五维评分与推荐** — 对每个新 Skill 由模型从实用性、通用性、社区热度、新颖性、安全性五个维度打分（0-10），计算总分并给出 `strongly_recommended` / `worth_watching` / `not_recommended` 推荐等级（安全分 ≤ 2 一票否决）
+- **推荐推送** — 强烈推荐的 Skill 自动推送到 Console、钉钉机器人等渠道，通知内容含名称、slug、简介、分类、版本、总分、五维评分、主页；按 slug 去重，同一 Skill 不重复通知
+- **定时监控** — 内置 Scheduler，每 60 分钟自动执行一轮「发现 → 评分 → 推送」监控任务
+
+### 文件与代码助手
+
+- **文件操作** — `read_file` / `write_file` / `list_files` / `search_files`：读取、写入、列目录、按内容关键词搜索文件
+- **代码分析** — 结合 fileAnalysis 等 Skill，Agent 按规范流程阅读代码并输出分析结论
+- **命令执行** — `run_command` 可执行命令，但须通过三级风险分级、工作区边界检查与 y/N 交互确认，危险命令会被直接拒绝
+
+### 对话与记忆
+
+- **多轮对话** — 同一 Session 内共享上下文，支持追问；会话持久化到本地文件，支持新建、切换、列出
+- **长期记忆** — 任务结束后 Memory Agent 自动判断并保存值得长期记住的信息，下次对话自动带上
+- **上下文压缩** — 上下文过长时自动压缩历史并保留最近消息，防止超出模型窗口
 
 ## 技术栈
 
