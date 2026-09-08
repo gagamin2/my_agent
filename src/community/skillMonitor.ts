@@ -5,6 +5,7 @@ import { NotificationManager } from "../notification/notificationManager.js"
 import { ConsoleNotificationChannel } from "../notification/consoleNotificationChannel.js"
 import { SkillNotificationService } from "../notification/skillNotificationService.js"
 import { NotificationHistory } from "../notification/notificationHistory.js"
+import { WebhookNotificationChannel } from "../notification/webhookNotificationChannel.js"
 
 export async function runSkillMonitor(): Promise<void> {
   console.log("\n========== SkillHub 自动监控开始 ==========")
@@ -19,6 +20,9 @@ export async function runSkillMonitor(): Promise<void> {
 
     const notificationManager = new NotificationManager([
       new ConsoleNotificationChannel(),
+      new WebhookNotificationChannel(
+        "https://example.com/webhook",
+      ),
     ])
 
     const notificationHistory =new NotificationHistory()
