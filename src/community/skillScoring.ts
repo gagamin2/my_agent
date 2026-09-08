@@ -41,7 +41,7 @@ export function getRecommendationLevel(
   if (security <= 2) {
     return "not_recommended"
   }
-  if (totalScore >= 41) {
+  if (totalScore >= 39) {
     return "strongly_recommended"
   }
   if (totalScore >= 26) {
