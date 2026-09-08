@@ -1,4 +1,5 @@
 import {calculateTotalScore,getRecommendationLevel,evaluateSkill} from "../community/skillScoring.js"
+import type { CommunitySkill } from "../community/communityTool.js"
 
 console.log("=== skill得分计算测试 ===")
 
@@ -14,15 +15,15 @@ console.log("\n测试 1：满分")
 console.log("总分：", calculateTotalScore(fullScore))
 console.log("推荐等级：",getRecommendationLevel(50, 10))
 
-// 2. 41 分
+// 2. 39 分
 const strongScore = {
   usefulness: 9,
   generality: 8,
   popularity: 7,
-  novelty: 9,
-  security: 8,
+  novelty: 8,
+  security: 7,
 }
-console.log("\n测试 2：41 分")
+console.log("\n测试 2：39 分")
 console.log("总分：", calculateTotalScore(strongScore))
 console.log("推荐等级：",getRecommendationLevel(41, 8))
 
@@ -64,13 +65,33 @@ console.log("推荐等级：",getRecommendationLevel(42, 2))
 
 // 6. 完整评估
 console.log("\n测试 6：完整评估")
+const testSkill: CommunitySkill = {
+  slug: "test-skill",
+  source: "community",
+  name: "测试 Skill",
+  description: "This is a test skill.",
+  description_zh: "这是一个用于测试完整评估的 Skill。",
+  category: "开发工具",
+  version: "1.0.0",
+  homepage: "https://example.com/test-skill",
+  tags: ["test", "development"],
+  downloads: 100,
+  stars: 10,
+  installs: 50,
+  created_at: Date.now(),
+  updated_at: Date.now(),
+  score: 8,
+  labels: null,
+}
+
 const result = evaluateSkill(
-  "test-skill",{
+  testSkill,
+  {
     usefulness: 9,
     generality: 8,
     popularity: 7,
     novelty: 9,
     security: 8,
-  }
+  },
 )
 console.log(result)

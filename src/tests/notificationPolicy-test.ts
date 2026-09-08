@@ -3,6 +3,12 @@ import type { SkillRecommendation } from "../community/skillScoring.js"
 
 const stronglyRecommended: SkillRecommendation = {
   skillSlug: "strongly-recommended-skill",
+  name: "强烈推荐测试 Skill",
+  description: "用于测试强烈推荐通知策略。",
+  descriptionZh: "用于测试强烈推荐通知策略。",
+  category: "测试工具",
+  version: "1.0.0",
+  homepage: "https://example.com/strongly-recommended-skill",
   scores: {
     usefulness: 10,
     generality: 10,
@@ -16,6 +22,12 @@ const stronglyRecommended: SkillRecommendation = {
 
 const worthWatching: SkillRecommendation = {
   skillSlug: "worth-watching-skill",
+  name: "值得关注测试 Skill",
+  description: "用于测试值得关注通知策略。",
+  descriptionZh: "用于测试值得关注通知策略。",
+  category: "测试工具",
+  version: "1.0.0",
+  homepage: "https://example.com/worth-watching-skill",
   scores: {
     usefulness: 8,
     generality: 8,
@@ -29,6 +41,12 @@ const worthWatching: SkillRecommendation = {
 
 const notRecommended: SkillRecommendation = {
   skillSlug: "not-recommended-skill",
+  name: "暂不推荐测试 Skill",
+  description: "用于测试暂不推荐通知策略。",
+  descriptionZh: "用于测试暂不推荐通知策略。",
+  category: "测试工具",
+  version: "1.0.0",
+  homepage: "https://example.com/not-recommended-skill",
   scores: {
     usefulness: 5,
     generality: 5,

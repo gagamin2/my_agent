@@ -4,6 +4,12 @@ import type {SkillRecommendation} from "../community/skillScoring.js"
 
 const stronglyRecommended: SkillRecommendation = {
   skillSlug: "test-skill",
+  name: "测试 Skill",
+  description: "This is an English description.",
+  descriptionZh: "这是一个用于测试通知内容的 Skill。",
+  category: "开发工具",
+  version: "1.2.0",
+  homepage: "https://example.com/test-skill",
   scores: {
     usefulness: 10,
     generality: 9,
@@ -17,6 +23,12 @@ const stronglyRecommended: SkillRecommendation = {
 
 const worthWatching: SkillRecommendation = {
   skillSlug: "watch-skill",
+  name: "关注测试 Skill",
+  description: "用于测试值得关注的 Skill。",
+  descriptionZh: "这是一个值得关注的测试 Skill。",
+  category: "开发工具",
+  version: "1.0.0",
+  homepage: "https://example.com/watch-skill",
   scores: {
     usefulness: 7,
     generality: 6,
@@ -30,6 +42,12 @@ const worthWatching: SkillRecommendation = {
 
 const notRecommended: SkillRecommendation = {
   skillSlug: "bad-skill",
+  name: "不推荐测试 Skill",
+  description: "用于测试不推荐的 Skill。",
+  descriptionZh: "这是一个不推荐的测试 Skill。",
+  category: "测试工具",
+  version: "1.0.0",
+  homepage: "https://example.com/bad-skill",
   scores: {
     usefulness: 3,
     generality: 3,
@@ -54,11 +72,34 @@ if (notification.level !== "important") {
   throw new Error("强烈推荐的 Skill 通知级别应该是 important")
 }
 
-if (!notification.content.includes("test-skill")) {
+if (!notification.content.includes("测试 Skill")) {
   throw new Error("通知内容应该包含 Skill 名称")
 }
+if (
+  !notification.content.includes(
+    "这是一个用于测试通知内容的 Skill。",
+  )
+) {
+  throw new Error("通知内容应该包含 Skill 中文简介")
+}
 
-if (!notification.content.includes("总分：46")) {
+if (!notification.content.includes("开发工具")) {
+  throw new Error("通知内容应该包含 Skill 分类")
+}
+
+if (!notification.content.includes("1.2.0")) {
+  throw new Error("通知内容应该包含 Skill 版本")
+}
+
+if (
+  !notification.content.includes(
+    "https://example.com/test-skill",
+  )
+) {
+  throw new Error("通知内容应该包含 Skill 主页")
+}
+
+if (!notification.content.includes("⭐ 推荐评分：46")) {
   throw new Error("通知内容应该包含总分")
 }
 

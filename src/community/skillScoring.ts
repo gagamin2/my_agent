@@ -1,3 +1,5 @@
+import type { CommunitySkill } from "./communityTool.js"
+
 export type Score = number
 
 export interface SkillScores {
@@ -32,6 +34,12 @@ export interface SkillRecommendation {
   totalScore: number
   level: RecommendationLevel
   skillSlug: string
+  name: string
+  description: string
+  descriptionZh: string
+  category: string
+  version: string
+  homepage: string
 }
 
 export function getRecommendationLevel(
@@ -51,14 +59,23 @@ export function getRecommendationLevel(
 }
 
 export function evaluateSkill(
-  skillSlug: string,
+  skill: CommunitySkill,
   scores: SkillScores,
 ): SkillRecommendation {
   const totalScore = calculateTotalScore(scores)
-  const level =getRecommendationLevel(totalScore,scores.security)
+  const level = getRecommendationLevel(
+    totalScore,
+    scores.security,
+  )
 
   return {
-    skillSlug,
+    skillSlug: skill.slug,
+    name: skill.name,
+    description: skill.description,
+    descriptionZh: skill.description_zh,
+    category: skill.category,
+    version: skill.version,
+    homepage: skill.homepage,
     scores,
     totalScore,
     level,

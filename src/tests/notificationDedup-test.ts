@@ -24,6 +24,12 @@ const notificationHistory = new NotificationHistory()
 // 模拟一个强烈推荐的 Skill
 const recommendation: SkillRecommendation = {
   skillSlug: "test-skill",
+  name: "测试 Skill",
+  description: "这是一个用于测试通知去重功能的 Skill。",
+  descriptionZh: "这是一个用于测试通知去重功能的 Skill。",
+  category: "测试工具",
+  version: "1.0.0",
+  homepage: "https://example.com/test-skill",
   scores: {
     usefulness: 10,
     generality: 10,

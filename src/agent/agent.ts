@@ -20,8 +20,9 @@ import { runCommandTool } from "../tools/runCommand.js"
 import { Skills } from "openai/resources"
 import type { Interface } from "node:readline/promises"
 import { getCommunitySkillsTool } from "../community/communityTool.js"
-import { skillScoringTool } from "../community/skillScoring.js"
+import { skillScoringTool,evaluateSkill } from "../community/skillScoring.js"
 import type { SkillRecommendation } from "../community/skillScoring.js"
+import type { CommunitySkill } from "../community/communityTool.js"
 
 const MAX_TURNS = 10//保险丝：最大执行轮数
 
@@ -119,6 +120,7 @@ ${communityRecommendationSkill.content}`
   let totalOutput =0
   let recoveryCount = 0
   const toolHistory = new Map<string, number>()
+  const communitySkills = new Map<string, CommunitySkill>()
   while(i < MAX_TURNS){
     i++
     console.log(`\nAgent 第 ${i} 轮：`)
@@ -213,35 +215,79 @@ ${communityRecommendationSkill.content}`
       // })
     }
 
-    let result
-    try {
+  let result
+
+  try {
     result = await executeTool(
       toolCall.function.name,
       toolCall.function.arguments,
       rl,
     )
-    if (
-      toolCall.function.name === "evaluate_skill" &&
-      onSkillRecommendation
-    ) {
-    await onSkillRecommendation(
-      result as SkillRecommendation,
-    )
-  }
-    // console.log("Tool result:")
-    // console.log(result)
-    }catch(error){
-      result = {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    }
-}
 
-    addMessage(session.messages, {
-      role: "tool",
-      tool_call_id: toolCall.id,
-      content: JSON.stringify(result),
-    })//Tool Result 加入对话历史
+    // 保存 get_community_skills 返回的 Skill
+    if (toolCall.function.name === "get_community_skills") {
+      const skills = result as CommunitySkill[]
+
+      for (const skill of skills) {
+        communitySkills.set(skill.slug, skill)
+      }
+    }
+
+    // 处理 evaluate_skill
+    if (toolCall.function.name === "evaluate_skill") {
+      const args = JSON.parse(
+        toolCall.function.arguments,
+      ) as {
+        skillSlug: string
+        usefulness: number
+        generality: number
+        popularity: number
+        novelty: number
+        security: number
+      }
+
+      const skill = communitySkills.get(args.skillSlug)
+
+      if (!skill) {
+        throw new Error(
+          `找不到正在评分的 Skill：${args.skillSlug}`,
+        )
+      }
+
+      const recommendation = evaluateSkill(
+        skill,
+        {
+          usefulness: args.usefulness,
+          generality: args.generality,
+          popularity: args.popularity,
+          novelty: args.novelty,
+          security: args.security,
+        },
+      )
+
+      // evaluate_skill 的结果作为 Tool Result
+      result = recommendation
+
+      // 如果配置了通知回调，则发送通知
+      if (onSkillRecommendation) {
+        await onSkillRecommendation(recommendation)
+      }
+    }
+  } catch (error) {
+    result = {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : String(error),
+    }
+  }
+
+  addMessage(session.messages, {
+    role: "tool",
+    tool_call_id: toolCall.id,
+    content: JSON.stringify(result),
+  })//Tool Result 加入对话历史
 
     // //第二次调用模型
     // const secondResponse = await client.chat.completions.create({
@@ -252,7 +298,6 @@ ${communityRecommendationSkill.content}`
     // const secondMessage = secondResponse.choices[0]!.message
     // console.dir(secondMessage, { depth: null })
     // return secondMessage.content
-
   }
 
   if (loopWarning) {

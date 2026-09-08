@@ -38,6 +38,12 @@ const service = new SkillNotificationService(
 
 const recommendation: SkillRecommendation = {
   skillSlug: "test-skill",
+  name: "测试 Skill",
+  description: "这是一个用于测试通知服务的 Skill。",
+  descriptionZh: "这是一个用于测试通知服务的 Skill。",
+  category: "测试工具",
+  version: "1.0.0",
+  homepage: "https://example.com/test-skill",
   scores: {
     usefulness: 10,
     generality: 10,
@@ -76,6 +82,12 @@ console.log("✓ 重复通知拦截测试通过")
 // 测试非强烈推荐
 const worthWatching: SkillRecommendation = {
   skillSlug: "worth-watching-skill",
+  name: "值得关注测试 Skill",
+  description: "用于测试非强烈推荐 Skill。",
+  descriptionZh: "用于测试非强烈推荐 Skill。",
+  category: "测试工具",
+  version: "1.0.0",
+  homepage: "https://example.com/worth-watching-skill",
   scores: {
     usefulness: 8,
     generality: 8,
