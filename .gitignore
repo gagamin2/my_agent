@@ -13,3 +13,6 @@ src/session/sessions/
 
 # skill获取历史
 src/community/skillHistory.json
+
+#Skill通知历史
+src/notification/notificationHistory.json
