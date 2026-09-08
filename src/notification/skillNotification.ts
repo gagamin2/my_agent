@@ -1,13 +1,13 @@
 import type { Notification } from "./notification.js"
 import type { SkillRecommendation } from "../community/skillScoring.js"
+import { shouldNotifySkill } from "./notificationPolicy.js"
 
 export function createSkillNotification(
   recommendation: SkillRecommendation,
 ): Notification | null {
-  // 只有强烈推荐的 Skill 才发送通知
-  if (recommendation.level !== "strongly_recommended") {
+  if (!shouldNotifySkill(recommendation)) {
     return null
-  }
+  }//不发送通知
 
   return {
     title: "发现强烈推荐的 Skill",
